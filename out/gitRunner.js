@@ -91,7 +91,7 @@ async function takeSnapshot(cwd, summary) {
     }
     await git(['add', '-A'], cwd);
     const now = new Date().toISOString().replace('T', ' ').slice(0, 19);
-    const msg = summary ? `Snapshot: ${now} — ${summary}` : `Snapshot: ${now}`;
+    const msg = summary ? summary : `Snapshot: ${now}`;
     const commit = await git(['commit', '-m', msg], cwd);
     if (commit.failed) {
         return { ok: false, message: 'Could not save the snapshot.', code: 'UNKNOWN', rawError: commit.stderr };
