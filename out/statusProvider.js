@@ -36,137 +36,127 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.StatusProvider = void 0;
 const vscode = __importStar(require("vscode"));
 class StatusItem extends vscode.TreeItem {
-    buttonId;
-    constructor(label, collapsible = vscode.TreeItemCollapsibleState.None, buttonId) {
+    constructor(label, collapsible = vscode.TreeItemCollapsibleState.None, command) {
         super(label, collapsible);
-        this.buttonId = buttonId;
+        if (command) {
+            this.command = { command, title: label };
+            this.contextValue = `button-${command.replace('go-git-it.', '')}`;
+        }
     }
+}
+function separator(label) {
+    const item = new StatusItem(label);
+    item.contextValue = 'separator';
+    item.tooltip = '';
+    return item;
+}
+function button(label, command) {
+    return new StatusItem(label, vscode.TreeItemCollapsibleState.None, command);
+}
+function startSection() {
+    return [
+        separator('── START ──'),
+        button('🏗️  Build a new project', 'go-git-it.buildNewProject'),
+        button('📂  Open a different project', 'go-git-it.openDifferentProject'),
+    ];
 }
 class StatusProvider {
     _onDidChangeTreeData = new vscode.EventEmitter();
     onDidChangeTreeData = this._onDidChangeTreeData.event;
     state = null;
     hasError = false;
-    noRepo = false;
-    update(state, hasError) {
+    noRepo = true;
+    gitMissing = false;
+    update(state, hasError, gitMissing = false) {
         this.state = state;
         this.hasError = hasError;
         this.noRepo = state === null;
+        this.gitMissing = gitMissing;
         this._onDidChangeTreeData.fire();
     }
-    getTreeItem(element) {
-        return element;
-    }
+    getTreeItem(el) { return el; }
     getChildren() {
-        if (this.noRepo) {
+        if (this.gitMissing)
+            return this.gitMissingState();
+        if (this.noRepo)
             return this.emptyState();
-        }
         return [
-            ...this.projectSection(),
-            ...this.whereYouAreSection(),
-            ...this.yourWorkSection(),
-            this.separator('── START ──'),
-            this.button('🏗️  Build a new project', 'buildNewProject', 'go-git-it.buildNewProject'),
-            this.button('📂  Open a different project', 'openDifferentProject', 'go-git-it.openDifferentProject'),
-            this.separator('── YOUR WORK ──'),
-            this.button('📸  Take a snapshot', 'takeSnapshot', 'go-git-it.takeSnapshot'),
-            this.button('☁️   Send to GitHub', 'pushToGitHub', 'go-git-it.pushToGitHub'),
-            this.button('⬇️   Get latest from GitHub', 'pullLatest', 'go-git-it.pullLatest'),
+            ...this.statusSection(),
+            ...startSection(),
+            separator('── YOUR WORK ──'),
+            button('📸  Take a snapshot', 'go-git-it.takeSnapshot'),
+            button('☁️   Send to GitHub', 'go-git-it.pushToGitHub'),
+            button('⬇️   Get latest from GitHub', 'go-git-it.pullLatest'),
             ...this.experimentsSection(),
             ...this.helpSection(),
         ];
     }
+    gitMissingState() {
+        const item = new StatusItem('⚠️ Git is not installed');
+        item.description = 'Install Git to use Go Git It';
+        item.tooltip = 'Download Git from https://git-scm.com';
+        return [item, ...startSection()];
+    }
     emptyState() {
-        const item = new StatusItem("👋 No project open yet");
-        item.description = 'Click 🏗️ to build something new, or 📂 to open an existing project.';
-        item.contextValue = 'emptyState';
-        return [
-            item,
-            this.separator('── START ──'),
-            this.button('🏗️  Build a new project', 'buildNewProject', 'go-git-it.buildNewProject'),
-            this.button('📂  Open a different project', 'openDifferentProject', 'go-git-it.openDifferentProject'),
-        ];
+        const item = new StatusItem('👋 No git project open');
+        item.description = 'Open or build a project to get started';
+        return [item, ...startSection()];
     }
-    projectSection() {
-        const folder = vscode.workspace.workspaceFolders?.[0];
-        const name = folder ? folder.name : '—';
-        const header = new StatusItem('📁 PROJECT');
-        header.contextValue = 'sectionHeader';
-        const nameItem = new StatusItem(name);
-        nameItem.description = 'current project';
-        nameItem.contextValue = 'projectName';
-        return [header, nameItem];
-    }
-    whereYouAreSection() {
+    statusSection() {
         const s = this.state;
-        const header = new StatusItem('📍 WHERE YOU ARE');
-        header.contextValue = 'sectionHeader';
-        let label;
+        const items = [];
+        // Branch
+        let branchLabel;
         if (s.currentBranch === 'main' || s.currentBranch === 'master') {
-            label = "You're on: Main line";
+            branchLabel = '📍 Main line';
         }
         else if (s.currentBranch.startsWith('experiment/')) {
-            const name = s.currentBranch.replace('experiment/', '');
-            label = `You're experimenting: ${name}`;
+            branchLabel = `🧪 Experiment: ${s.currentBranch.replace('experiment/', '')}`;
         }
         else {
-            label = `Branch: ${s.currentBranch}`;
+            branchLabel = `📍 ${s.currentBranch}`;
         }
-        const location = new StatusItem(label);
-        location.contextValue = 'location';
-        return [header, location];
-    }
-    yourWorkSection() {
-        const s = this.state;
-        const header = new StatusItem('💾 YOUR WORK');
-        header.contextValue = 'sectionHeader';
-        let label;
+        const branch = new StatusItem(branchLabel);
+        branch.contextValue = 'status-branch';
+        items.push(branch);
+        // Work status
+        let workLabel;
         if (!s.hasUpstream) {
-            label = "⚠️ Not connected to GitHub";
+            workLabel = '⚠️ Not connected to GitHub';
         }
         else if (s.isDirty) {
-            label = "🟡 You have unsaved changes";
+            workLabel = '🟡 Unsaved changes';
         }
         else if (s.commits.length > 0 && !s.commits[0].pushed) {
-            label = "🔵 Saved here, not on GitHub yet";
+            workLabel = '🔵 Saved here, not on GitHub yet';
         }
         else {
-            label = "✅ Everything saved & backed up";
+            workLabel = '✅ Everything saved & backed up';
         }
-        const status = new StatusItem(label);
-        status.contextValue = 'workStatus';
-        return [header, status];
+        const work = new StatusItem(workLabel);
+        work.contextValue = 'status-work';
+        items.push(work);
+        return items;
     }
     experimentsSection() {
-        const s = this.state;
-        const onExperiment = s.currentBranch.startsWith('experiment/');
+        const onExperiment = this.state.currentBranch.startsWith('experiment/');
         const items = [
-            this.separator('── EXPERIMENTS ──'),
-            this.button('🧪  Start a new experiment', 'startExperiment', 'go-git-it.startExperiment'),
+            separator('── EXPERIMENTS ──'),
+            button('🧪  Start a new experiment', 'go-git-it.startExperiment'),
         ];
         if (onExperiment) {
-            items.push(this.button('✅  Finish this experiment', 'finishExperiment', 'go-git-it.finishExperiment'), this.button('🗑️  Abandon this experiment', 'abandonExperiment', 'go-git-it.abandonExperiment'));
+            items.push(button('✅  Finish this experiment', 'go-git-it.finishExperiment'));
+            items.push(button('🗑️  Abandon this experiment', 'go-git-it.abandonExperiment'));
         }
         return items;
     }
     helpSection() {
-        const items = [this.separator('── HELP ──')];
+        const items = [separator('── HELP ──')];
         if (this.hasError) {
-            items.push(this.button("❓  What's going on?", 'explainError', 'go-git-it.explainError'));
+            items.push(button("❓  What's going on?", 'go-git-it.explainError'));
         }
-        items.push(this.button('📖  How does this work?', 'openWalkthrough', 'go-git-it.openWalkthrough'));
+        items.push(button('📖  How does this work?', 'go-git-it.openWalkthrough'));
         return items;
-    }
-    separator(label) {
-        const item = new StatusItem(label);
-        item.contextValue = 'separator';
-        return item;
-    }
-    button(label, buttonId, command) {
-        const item = new StatusItem(label, vscode.TreeItemCollapsibleState.None, buttonId);
-        item.command = { command, title: label };
-        item.contextValue = `button-${buttonId}`;
-        return item;
     }
 }
 exports.StatusProvider = StatusProvider;

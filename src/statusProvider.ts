@@ -1,26 +1,37 @@
 import * as vscode from 'vscode'
 import { GitState } from './gitRunner'
 
-type ButtonId =
-  | 'buildNewProject'
-  | 'openDifferentProject'
-  | 'takeSnapshot'
-  | 'pushToGitHub'
-  | 'pullLatest'
-  | 'startExperiment'
-  | 'finishExperiment'
-  | 'abandonExperiment'
-  | 'explainError'
-  | 'openWalkthrough'
-
 class StatusItem extends vscode.TreeItem {
   constructor(
     label: string,
     collapsible = vscode.TreeItemCollapsibleState.None,
-    public readonly buttonId?: ButtonId
+    command?: string
   ) {
     super(label, collapsible)
+    if (command) {
+      this.command = { command, title: label }
+      this.contextValue = `button-${command.replace('go-git-it.', '')}`
+    }
   }
+}
+
+function separator(label: string): StatusItem {
+  const item = new StatusItem(label)
+  item.contextValue = 'separator'
+  item.tooltip = ''
+  return item
+}
+
+function button(label: string, command: string): StatusItem {
+  return new StatusItem(label, vscode.TreeItemCollapsibleState.None, command)
+}
+
+function startSection(): StatusItem[] {
+  return [
+    separator('── START ──'),
+    button('🏗️  Build a new project',      'go-git-it.buildNewProject'),
+    button('📂  Open a different project',  'go-git-it.openDifferentProject'),
+  ]
 }
 
 export class StatusProvider implements vscode.TreeDataProvider<StatusItem> {
@@ -29,138 +40,101 @@ export class StatusProvider implements vscode.TreeDataProvider<StatusItem> {
 
   private state: GitState | null = null
   private hasError = false
-  private noRepo = false
+  private noRepo = true
+  private gitMissing = false
 
-  update(state: GitState | null, hasError: boolean): void {
+  update(state: GitState | null, hasError: boolean, gitMissing = false): void {
     this.state = state
     this.hasError = hasError
     this.noRepo = state === null
+    this.gitMissing = gitMissing
     this._onDidChangeTreeData.fire()
   }
 
-  getTreeItem(element: StatusItem): vscode.TreeItem {
-    return element
-  }
+  getTreeItem(el: StatusItem): vscode.TreeItem { return el }
 
   getChildren(): StatusItem[] {
-    if (this.noRepo) {
-      return this.emptyState()
-    }
+    if (this.gitMissing) return this.gitMissingState()
+    if (this.noRepo)     return this.emptyState()
     return [
-      ...this.projectSection(),
-      ...this.whereYouAreSection(),
-      ...this.yourWorkSection(),
-      this.separator('── START ──'),
-      this.button('🏗️  Build a new project', 'buildNewProject', 'go-git-it.buildNewProject'),
-      this.button('📂  Open a different project', 'openDifferentProject', 'go-git-it.openDifferentProject'),
-      this.separator('── YOUR WORK ──'),
-      this.button('📸  Take a snapshot', 'takeSnapshot', 'go-git-it.takeSnapshot'),
-      this.button('☁️   Send to GitHub', 'pushToGitHub', 'go-git-it.pushToGitHub'),
-      this.button('⬇️   Get latest from GitHub', 'pullLatest', 'go-git-it.pullLatest'),
+      ...this.statusSection(),
+      ...startSection(),
+      separator('── YOUR WORK ──'),
+      button('📸  Take a snapshot',          'go-git-it.takeSnapshot'),
+      button('☁️   Send to GitHub',           'go-git-it.pushToGitHub'),
+      button('⬇️   Get latest from GitHub',   'go-git-it.pullLatest'),
       ...this.experimentsSection(),
       ...this.helpSection(),
     ]
   }
 
+  private gitMissingState(): StatusItem[] {
+    const item = new StatusItem('⚠️ Git is not installed')
+    item.description = 'Install Git to use Go Git It'
+    item.tooltip = 'Download Git from https://git-scm.com'
+    return [item, ...startSection()]
+  }
+
   private emptyState(): StatusItem[] {
-    const item = new StatusItem("👋 No project open yet")
-    item.description = 'Click 🏗️ to build something new, or 📂 to open an existing project.'
-    item.contextValue = 'emptyState'
-    return [
-      item,
-      this.separator('── START ──'),
-      this.button('🏗️  Build a new project', 'buildNewProject', 'go-git-it.buildNewProject'),
-      this.button('📂  Open a different project', 'openDifferentProject', 'go-git-it.openDifferentProject'),
-    ]
+    const item = new StatusItem('👋 No git project open')
+    item.description = 'Open or build a project to get started'
+    return [item, ...startSection()]
   }
 
-  private projectSection(): StatusItem[] {
-    const folder = vscode.workspace.workspaceFolders?.[0]
-    const name = folder ? folder.name : '—'
-    const header = new StatusItem('📁 PROJECT')
-    header.contextValue = 'sectionHeader'
-    const nameItem = new StatusItem(name)
-    nameItem.description = 'current project'
-    nameItem.contextValue = 'projectName'
-    return [header, nameItem]
-  }
-
-  private whereYouAreSection(): StatusItem[] {
+  private statusSection(): StatusItem[] {
     const s = this.state!
-    const header = new StatusItem('📍 WHERE YOU ARE')
-    header.contextValue = 'sectionHeader'
-    let label: string
+    const items: StatusItem[] = []
+
+    // Branch
+    let branchLabel: string
     if (s.currentBranch === 'main' || s.currentBranch === 'master') {
-      label = "You're on: Main line"
+      branchLabel = '📍 Main line'
     } else if (s.currentBranch.startsWith('experiment/')) {
-      const name = s.currentBranch.replace('experiment/', '')
-      label = `You're experimenting: ${name}`
+      branchLabel = `🧪 Experiment: ${s.currentBranch.replace('experiment/', '')}`
     } else {
-      label = `Branch: ${s.currentBranch}`
+      branchLabel = `📍 ${s.currentBranch}`
     }
-    const location = new StatusItem(label)
-    location.contextValue = 'location'
-    return [header, location]
-  }
+    const branch = new StatusItem(branchLabel)
+    branch.contextValue = 'status-branch'
+    items.push(branch)
 
-  private yourWorkSection(): StatusItem[] {
-    const s = this.state!
-    const header = new StatusItem('💾 YOUR WORK')
-    header.contextValue = 'sectionHeader'
-    let label: string
+    // Work status
+    let workLabel: string
     if (!s.hasUpstream) {
-      label = "⚠️ Not connected to GitHub"
+      workLabel = '⚠️ Not connected to GitHub'
     } else if (s.isDirty) {
-      label = "🟡 You have unsaved changes"
+      workLabel = '🟡 Unsaved changes'
     } else if (s.commits.length > 0 && !s.commits[0].pushed) {
-      label = "🔵 Saved here, not on GitHub yet"
+      workLabel = '🔵 Saved here, not on GitHub yet'
     } else {
-      label = "✅ Everything saved & backed up"
+      workLabel = '✅ Everything saved & backed up'
     }
-    const status = new StatusItem(label)
-    status.contextValue = 'workStatus'
-    return [header, status]
+    const work = new StatusItem(workLabel)
+    work.contextValue = 'status-work'
+    items.push(work)
+
+    return items
   }
 
   private experimentsSection(): StatusItem[] {
-    const s = this.state!
-    const onExperiment = s.currentBranch.startsWith('experiment/')
+    const onExperiment = this.state!.currentBranch.startsWith('experiment/')
     const items: StatusItem[] = [
-      this.separator('── EXPERIMENTS ──'),
-      this.button('🧪  Start a new experiment', 'startExperiment', 'go-git-it.startExperiment'),
+      separator('── EXPERIMENTS ──'),
+      button('🧪  Start a new experiment', 'go-git-it.startExperiment'),
     ]
     if (onExperiment) {
-      items.push(
-        this.button('✅  Finish this experiment', 'finishExperiment', 'go-git-it.finishExperiment'),
-        this.button('🗑️  Abandon this experiment', 'abandonExperiment', 'go-git-it.abandonExperiment')
-      )
+      items.push(button('✅  Finish this experiment',   'go-git-it.finishExperiment'))
+      items.push(button('🗑️  Abandon this experiment',  'go-git-it.abandonExperiment'))
     }
     return items
   }
 
   private helpSection(): StatusItem[] {
-    const items: StatusItem[] = [this.separator('── HELP ──')]
+    const items: StatusItem[] = [separator('── HELP ──')]
     if (this.hasError) {
-      items.push(
-        this.button("❓  What's going on?", 'explainError', 'go-git-it.explainError')
-      )
+      items.push(button("❓  What's going on?", 'go-git-it.explainError'))
     }
-    items.push(
-      this.button('📖  How does this work?', 'openWalkthrough', 'go-git-it.openWalkthrough')
-    )
+    items.push(button('📖  How does this work?', 'go-git-it.openWalkthrough'))
     return items
-  }
-
-  private separator(label: string): StatusItem {
-    const item = new StatusItem(label)
-    item.contextValue = 'separator'
-    return item
-  }
-
-  private button(label: string, buttonId: ButtonId, command: string): StatusItem {
-    const item = new StatusItem(label, vscode.TreeItemCollapsibleState.None, buttonId)
-    item.command = { command, title: label }
-    item.contextValue = `button-${buttonId}`
-    return item
   }
 }

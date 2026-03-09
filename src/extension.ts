@@ -4,37 +4,30 @@ import * as fs from 'fs/promises'
 import * as os from 'os'
 
 import {
-  takeSnapshot,
-  pushToRemote,
-  pullLatest,
-  createExperiment,
-  mergeExperiment,
-  abandonExperiment,
-  getState,
-  initProject,
-  abortMerge,
-  GitResult,
-  GitState,
+  takeSnapshot, pushToRemote, pullLatest,
+  createExperiment, mergeExperiment, abandonExperiment,
+  getState, initProject, abortMerge,
+  isGitAvailable,
+  GitResult, GitState,
 } from './gitRunner'
-import {
-  isGhCliAvailable,
-  createGithubRepo,
-  showGhCliMissingModal,
-} from './githubSetup'
+import { isGhCliAvailable, createGithubRepo, showGhCliMissingModal } from './githubSetup'
 import { showRepoSwitcher } from './repoSwitcher'
 import { StatusProvider } from './statusProvider'
 import { TreeWebviewProvider } from './treeWebview'
 import { showErrorExplainer } from './errorExplainer'
 import { withFriendlyProgress, showSuccess, slugify } from './uiHelpers'
 
-// ── State ─────────────────────────────────────────────────────────────────────
+// ── Module-level state ────────────────────────────────────────────────────────
 
-let extensionContext: vscode.ExtensionContext
+let ctx: vscode.ExtensionContext
 let lastError: GitResult | undefined
 let currentState: GitState | undefined
 let statusProvider: StatusProvider
 let treeProvider: TreeWebviewProvider
 let statusBarItem: vscode.StatusBarItem
+let gitWatcher: vscode.FileSystemWatcher | undefined
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
 
 function getCwd(): string | undefined {
   return vscode.workspace.workspaceFolders?.[0]?.uri.fsPath
@@ -43,18 +36,31 @@ function getCwd(): string | undefined {
 async function refreshState(): Promise<void> {
   const cwd = getCwd()
   if (!cwd) {
-    statusProvider.update(null, false)
+    statusProvider.update(null, !!lastError)
+    statusBarItem.hide()
     return
   }
+
+  const gitOk = await isGitAvailable()
+  if (!gitOk) {
+    statusProvider.update(null, false, true)
+    statusBarItem.hide()
+    return
+  }
+
   const state = await getState(cwd)
   currentState = state ?? undefined
+
   if (state) {
     treeProvider.update(state)
-    statusBarItem.text = `$(git-commit) ${state.commits.length} snapshot${state.commits.length !== 1 ? 's' : ''}`
+    const n = state.commits.length
+    statusBarItem.text = `$(git-commit) ${n} snapshot${n !== 1 ? 's' : ''}`
+    statusBarItem.tooltip = `Go Git It — ${state.displayBranch}`
     statusBarItem.show()
   } else {
     statusBarItem.hide()
   }
+
   statusProvider.update(state, !!lastError)
 }
 
@@ -62,39 +68,45 @@ function handleResult(result: GitResult): void {
   if (result.ok) {
     lastError = undefined
     showSuccess(result.message)
+    statusProvider.update(currentState ?? null, false)
   } else {
     lastError = result
     statusProvider.update(currentState ?? null, true)
-    vscode.window.showWarningMessage(result.message, 'What\'s going on?').then((choice) => {
-      if (choice === "What's going on?") {
-        vscode.commands.executeCommand('go-git-it.explainError')
-      }
+    const BTN = "What's going on?"
+    vscode.window.showWarningMessage(result.message, BTN).then(choice => {
+      if (choice === BTN) vscode.commands.executeCommand('go-git-it.explainError')
     })
   }
+}
+
+function watchGitDir(cwd: string): void {
+  gitWatcher?.dispose()
+  // Watch .git/HEAD and .git/index to catch branch switches and external commits
+  const pattern = new vscode.RelativePattern(cwd, '.git/{HEAD,index,COMMIT_EDITMSG}')
+  gitWatcher = vscode.workspace.createFileSystemWatcher(pattern, false, false, true)
+  gitWatcher.onDidChange(() => refreshState())
+  gitWatcher.onDidCreate(() => refreshState())
+  ctx.subscriptions.push(gitWatcher)
 }
 
 // ── Activation ────────────────────────────────────────────────────────────────
 
 export function activate(context: vscode.ExtensionContext): void {
-  extensionContext = context
-  // Status bar badge
+  ctx = context
+
   statusBarItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 100)
   statusBarItem.command = 'go-git-it.openWalkthrough'
-  context.subscriptions.push(statusBarItem)
+  ctx.subscriptions.push(statusBarItem)
 
-  // Tree providers
   statusProvider = new StatusProvider()
-  treeProvider = new TreeWebviewProvider(context, async (hash) => {
-    await handleCommitClick(hash)
-  })
+  treeProvider = new TreeWebviewProvider(ctx, handleCommitClick)
 
-  context.subscriptions.push(
+  ctx.subscriptions.push(
     vscode.window.registerTreeDataProvider('go-git-it-status', statusProvider),
     vscode.window.registerWebviewViewProvider('go-git-it-tree', treeProvider)
   )
 
-  // Register commands
-  const cmds: [string, () => Promise<void>][] = [
+  const commands: [string, () => Promise<void>][] = [
     ['go-git-it.buildNewProject',      cmdBuildNewProject],
     ['go-git-it.openDifferentProject', cmdOpenDifferentProject],
     ['go-git-it.takeSnapshot',         cmdTakeSnapshot],
@@ -109,23 +121,27 @@ export function activate(context: vscode.ExtensionContext): void {
     ['go-git-it.snapshotThenPull',     cmdSnapshotThenPull],
     ['go-git-it.abortMerge',           cmdAbortMerge],
   ]
-
-  for (const [id, handler] of cmds) {
-    context.subscriptions.push(vscode.commands.registerCommand(id, handler))
+  for (const [id, handler] of commands) {
+    ctx.subscriptions.push(vscode.commands.registerCommand(id, handler))
   }
 
   // Watch workspace changes
-  context.subscriptions.push(
-    vscode.workspace.onDidChangeWorkspaceFolders(() => refreshState()),
-    vscode.workspace.onDidSaveTextDocument(() => refreshState())
+  ctx.subscriptions.push(
+    vscode.workspace.onDidChangeWorkspaceFolders(() => {
+      const cwd = getCwd()
+      if (cwd) watchGitDir(cwd)
+      refreshState()
+    })
   )
 
-  // Initial load
+  // Initial refresh
+  const cwd = getCwd()
+  if (cwd) watchGitDir(cwd)
   refreshState()
 }
 
 export function deactivate(): void {
-  // nothing to clean up
+  gitWatcher?.dispose()
 }
 
 // ── Command handlers ──────────────────────────────────────────────────────────
@@ -136,14 +152,12 @@ async function cmdTakeSnapshot(): Promise<void> {
 
   const summary = await vscode.window.showInputBox({
     title: 'Save a Snapshot',
-    prompt: 'What did you just do? (optional — press Enter to skip)',
+    prompt: 'What did you just work on? (optional)',
     placeHolder: 'e.g. Added the hero section',
   })
-  if (summary === undefined) return // user pressed Escape
+  if (summary === undefined) return
 
-  const result = await withFriendlyProgress('Saving your snapshot...', async () =>
-    takeSnapshot(cwd, summary || undefined)
-  )
+  const result = await withFriendlyProgress('Saving your snapshot...', () => takeSnapshot(cwd, summary || undefined))
   handleResult(result)
   await refreshState()
 }
@@ -151,10 +165,7 @@ async function cmdTakeSnapshot(): Promise<void> {
 async function cmdPushToGitHub(): Promise<void> {
   const cwd = getCwd()
   if (!cwd) { vscode.window.showWarningMessage('Open a project first.'); return }
-
-  const result = await withFriendlyProgress('Sending to GitHub...', async () =>
-    pushToRemote(cwd)
-  )
+  const result = await withFriendlyProgress('Sending to GitHub...', () => pushToRemote(cwd))
   handleResult(result)
   await refreshState()
 }
@@ -162,10 +173,7 @@ async function cmdPushToGitHub(): Promise<void> {
 async function cmdPullLatest(): Promise<void> {
   const cwd = getCwd()
   if (!cwd) { vscode.window.showWarningMessage('Open a project first.'); return }
-
-  const result = await withFriendlyProgress('Getting the latest version...', async () =>
-    pullLatest(cwd)
-  )
+  const result = await withFriendlyProgress('Getting the latest version...', () => pullLatest(cwd))
   handleResult(result)
   await refreshState()
 }
@@ -177,63 +185,46 @@ async function cmdStartExperiment(): Promise<void> {
   const name = await vscode.window.showInputBox({
     title: 'Start a New Experiment 🧪',
     prompt: 'What are you going to try?',
-    placeHolder: 'e.g. New hero layout, Dark mode, Login flow',
-    validateInput: (v) => (v.trim() ? undefined : 'Give it a name so you can find it later'),
+    placeHolder: 'e.g. Dark mode, New layout, Login flow',
+    validateInput: v => v.trim() ? undefined : 'Give it a name',
   })
   if (!name) return
 
-  const result = await withFriendlyProgress(`Starting experiment: ${name}...`, async () =>
-    createExperiment(cwd, name)
-  )
+  const result = await withFriendlyProgress(`Starting experiment: ${name}...`, () => createExperiment(cwd, name))
   handleResult(result)
   await refreshState()
 }
 
 async function cmdFinishExperiment(): Promise<void> {
   const cwd = getCwd()
-  if (!cwd) { vscode.window.showWarningMessage('Open a project first.'); return }
-  if (!currentState?.currentBranch.startsWith('experiment/')) {
-    vscode.window.showWarningMessage("You're not on an experiment right now.")
-    return
+  if (!cwd || !currentState?.currentBranch.startsWith('experiment/')) {
+    vscode.window.showWarningMessage("You're not on an experiment right now."); return
   }
-
   const confirm = await vscode.window.showInformationMessage(
     'Merge this experiment into your main work?',
-    { modal: true, detail: "This adds all your experiment's changes to your main line." },
-    'Yes, merge it in',
-    'Not yet'
+    { modal: true, detail: "This adds your experiment's changes to your main line." },
+    'Yes, merge it in'
   )
   if (confirm !== 'Yes, merge it in') return
 
-  const result = await withFriendlyProgress('Merging your experiment...', async () =>
-    mergeExperiment(cwd, currentState!.defaultBranch)
-  )
+  const result = await withFriendlyProgress('Merging your experiment...', () => mergeExperiment(cwd, currentState!.defaultBranch))
   handleResult(result)
   await refreshState()
 }
 
 async function cmdAbandonExperiment(): Promise<void> {
   const cwd = getCwd()
-  if (!cwd) { vscode.window.showWarningMessage('Open a project first.'); return }
-  if (!currentState?.currentBranch.startsWith('experiment/')) {
-    vscode.window.showWarningMessage("You're not on an experiment right now.")
-    return
+  if (!cwd || !currentState?.currentBranch.startsWith('experiment/')) {
+    vscode.window.showWarningMessage("You're not on an experiment right now."); return
   }
-
   const confirm = await vscode.window.showWarningMessage(
     'Abandon this experiment?',
-    {
-      modal: true,
-      detail: "This permanently deletes the experiment branch. Your main line is untouched.",
-    },
-    'Yes, delete it',
-    'Keep it for now'
+    { modal: true, detail: 'This permanently deletes the experiment. Your main line is untouched.' },
+    'Yes, delete it'
   )
   if (confirm !== 'Yes, delete it') return
 
-  const result = await withFriendlyProgress('Deleting experiment...', async () =>
-    abandonExperiment(cwd, currentState!.defaultBranch)
-  )
+  const result = await withFriendlyProgress('Deleting experiment...', () => abandonExperiment(cwd, currentState!.defaultBranch))
   handleResult(result)
   await refreshState()
 }
@@ -243,14 +234,11 @@ async function cmdExplainError(): Promise<void> {
     vscode.window.showInformationMessage("Everything looks good — no errors to explain!")
     return
   }
-  showErrorExplainer(extensionContext, lastError)
+  showErrorExplainer(ctx, lastError)
 }
 
 async function cmdOpenWalkthrough(): Promise<void> {
-  await vscode.commands.executeCommand(
-    'workbench.action.openWalkthrough',
-    'go-git-it.go-git-it.walkthrough'
-  )
+  await vscode.commands.executeCommand('workbench.action.openWalkthrough', 'go-git-it.go-git-it.walkthrough')
 }
 
 async function cmdConnectToGitHub(): Promise<void> {
@@ -258,26 +246,19 @@ async function cmdConnectToGitHub(): Promise<void> {
   if (!cwd) return
 
   const ghAvailable = await isGhCliAvailable()
-  if (!ghAvailable) {
-    await showGhCliMissingModal()
-    return
-  }
+  if (!ghAvailable) { await showGhCliMissingModal(); return }
 
-  const defaultSlug = path.basename(cwd)
   const slug = await vscode.window.showInputBox({
     title: 'Connect to GitHub',
     prompt: 'What should the GitHub repo be called?',
-    value: slugify(defaultSlug),
+    value: slugify(path.basename(cwd)),
   })
   if (!slug) return
 
   await withFriendlyProgress('Connecting to GitHub...', async () => {
     const result = await createGithubRepo(cwd, slug)
-    if (result.ok) {
-      showSuccess(`Connected! Your project is now backed up at github.com.`)
-    } else {
-      vscode.window.showErrorMessage(`Couldn't connect to GitHub: ${result.error}`)
-    }
+    if (result.ok) showSuccess('Connected! Your project is now on GitHub.')
+    else vscode.window.showErrorMessage(`Couldn't connect to GitHub: ${result.error}`)
   })
   await refreshState()
 }
@@ -285,28 +266,17 @@ async function cmdConnectToGitHub(): Promise<void> {
 async function cmdSnapshotThenPull(): Promise<void> {
   const cwd = getCwd()
   if (!cwd) return
-
-  const snapResult = await withFriendlyProgress('Saving your snapshot first...', async () =>
-    takeSnapshot(cwd)
-  )
-  if (!snapResult.ok && snapResult.code !== 'NOTHING_TO_COMMIT') {
-    handleResult(snapResult)
-    return
-  }
-
-  const pullResult = await withFriendlyProgress('Getting the latest version...', async () =>
-    pullLatest(cwd)
-  )
-  handleResult(pullResult)
+  const snap = await withFriendlyProgress('Saving your snapshot first...', () => takeSnapshot(cwd))
+  if (!snap.ok && snap.code !== 'NOTHING_TO_COMMIT') { handleResult(snap); return }
+  const pull = await withFriendlyProgress('Getting the latest version...', () => pullLatest(cwd))
+  handleResult(pull)
   await refreshState()
 }
 
 async function cmdAbortMerge(): Promise<void> {
   const cwd = getCwd()
   if (!cwd) return
-  const result = await withFriendlyProgress('Undoing the merge...', async () =>
-    abortMerge(cwd)
-  )
+  const result = await withFriendlyProgress('Undoing the merge...', () => abortMerge(cwd))
   handleResult(result)
   await refreshState()
 }
@@ -320,12 +290,12 @@ async function cmdOpenDifferentProject(): Promise<void> {
 async function cmdBuildNewProject(): Promise<void> {
   // Step 1 — Name
   const projectName = await vscode.window.showInputBox({
-    title: 'Step 1 of 4 — Name Your Project',
-    prompt: 'What are you building? Give it a name.',
+    title: 'Step 1 of 3 — Name Your Project',
+    prompt: 'What are you building?',
     placeHolder: 'e.g. My Portfolio, Recipe App, Landing Page',
-    validateInput: (v) => {
+    validateInput: v => {
       if (!v.trim()) return 'Give your project a name'
-      if (/[<>:"/\\|?*]/.test(v)) return 'Avoid special characters like < > : " / \\ | ? *'
+      if (/[<>:"/\\|?*]/.test(v)) return 'Avoid special characters'
       return undefined
     },
   })
@@ -334,18 +304,10 @@ async function cmdBuildNewProject(): Promise<void> {
   // Step 2 — Location
   const locationChoice = await vscode.window.showQuickPick(
     [
-      {
-        label: '$(folder) In my Documents folder',
-        description: 'Recommended for most people',
-        value: 'documents',
-      },
-      {
-        label: '$(search) Let me pick a folder',
-        description: 'Choose somewhere specific',
-        value: 'custom',
-      },
+      { label: '$(folder) In my Documents folder', description: 'Recommended', value: 'documents' },
+      { label: '$(search) Let me pick a folder',   description: 'Choose somewhere specific', value: 'custom' },
     ],
-    { title: 'Step 2 of 4 — Where Should We Save It?' }
+    { title: 'Step 2 of 3 — Where Should We Save It?' }
   )
   if (!locationChoice) return
 
@@ -354,75 +316,49 @@ async function cmdBuildNewProject(): Promise<void> {
     parentDir = path.join(os.homedir(), 'Documents')
   } else {
     const picked = await vscode.window.showOpenDialog({
-      canSelectFolders: true,
-      canSelectFiles: false,
-      openLabel: 'Save project here',
-      title: 'Choose a folder for your project',
+      canSelectFolders: true, canSelectFiles: false, openLabel: 'Save project here',
     })
-    if (!picked || picked.length === 0) return
+    if (!picked?.length) return
     parentDir = picked[0].fsPath
   }
 
   // Step 3 — GitHub
   const githubChoice = await vscode.window.showQuickPick(
     [
-      {
-        label: '$(github) Yes, connect to GitHub',
-        description: 'Your work will be safely backed up online. Recommended.',
-        value: 'yes',
-      },
-      {
-        label: '$(device-desktop) Just on my computer for now',
-        description: 'You can connect later',
-        value: 'no',
-      },
+      { label: '$(github) Yes, connect to GitHub', description: 'Recommended — backs up your work online', value: 'yes' },
+      { label: '$(device-desktop) Just on my computer for now', description: 'You can connect later', value: 'no' },
     ],
-    { title: 'Step 3 of 4 — Back Up to GitHub?' }
+    { title: 'Step 3 of 3 — Back Up to GitHub?' }
   )
   if (!githubChoice) return
   const connectGitHub = githubChoice.value === 'yes'
 
-  // Step 4 — Confirm
+  // Confirm
   const slug = slugify(projectName)
   const projectPath = path.join(parentDir, slug)
-  const confirm = await vscode.window.showQuickPick(
-    [
-      {
-        label: `$(check) Create project: ${projectName}`,
-        description: projectPath,
-        value: 'confirm',
-      },
-      {
-        label: `$(github) Will connect to GitHub: ${connectGitHub ? 'Yes' : 'No'}`,
-        description: '',
-        value: 'info',
-      },
-      { label: '$(rocket) Let\'s go!', description: 'Click to create your project', value: 'go' },
-      { label: '$(x) Cancel', description: '', value: 'cancel' },
-    ],
-    { title: 'Step 4 of 4 — Ready to Build!' }
+  const confirm = await vscode.window.showInformationMessage(
+    `Create "${projectName}"?`,
+    {
+      modal: true,
+      detail: `📁 Location: ${projectPath}\n${connectGitHub ? '☁️  Will connect to GitHub' : '💻  Local only (no GitHub)'}`,
+    },
+    "Let's go! 🚀"
   )
+  if (confirm !== "Let's go! 🚀") return
 
-  if (!confirm || confirm.value === 'cancel' || confirm.value === 'info') return
-  if (confirm.value !== 'go' && confirm.value !== 'confirm') return
-
-  // Execute
-  await withFriendlyProgress('Building your project...', async (progress) => {
+  let success = false
+  await withFriendlyProgress('Building your project...', async progress => {
     progress.report({ message: 'Creating folder...' })
     try {
       await fs.mkdir(projectPath, { recursive: true })
-    } catch (err: unknown) {
-      const e = err as { message?: string }
-      vscode.window.showErrorMessage(`Couldn't create the folder: ${e.message}`)
+    } catch (e: unknown) {
+      vscode.window.showErrorMessage(`Couldn't create the folder: ${(e as Error).message}`)
       return
     }
 
     progress.report({ message: 'Setting up your project...' })
     const initResult = await initProject(projectPath, projectName)
-    if (!initResult.ok) {
-      vscode.window.showErrorMessage(initResult.message)
-      return
-    }
+    if (!initResult.ok) { vscode.window.showErrorMessage(initResult.message); return }
 
     if (connectGitHub) {
       progress.report({ message: 'Connecting to GitHub...' })
@@ -431,25 +367,20 @@ async function cmdBuildNewProject(): Promise<void> {
         await showGhCliMissingModal()
       } else {
         const ghResult = await createGithubRepo(projectPath, slug)
-        if (ghResult.ok) {
-          showSuccess("✅ Your project is live on GitHub!")
-        } else {
-          vscode.window.showWarningMessage(
-            `Project created, but couldn't connect to GitHub: ${ghResult.error}`
-          )
-        }
+        if (ghResult.ok) showSuccess('✅ Your project is live on GitHub!')
+        else vscode.window.showWarningMessage(`Project created, but couldn't connect to GitHub: ${ghResult.error}`)
       }
     }
 
-    progress.report({ message: 'Opening your project...' })
-    await vscode.commands.executeCommand(
-      'vscode.openFolder',
-      vscode.Uri.file(projectPath)
-    )
+    success = true
   })
+
+  if (success) {
+    await vscode.commands.executeCommand('vscode.openFolder', vscode.Uri.file(projectPath))
+  }
 }
 
-// ── Commit node click ──────────────────────────────────────────────────────────
+// ── Commit click handler ──────────────────────────────────────────────────────
 
 async function handleCommitClick(hash: string): Promise<void> {
   const cwd = getCwd()
@@ -458,13 +389,13 @@ async function handleCommitClick(hash: string): Promise<void> {
   const action = await vscode.window.showQuickPick(
     [
       { label: '$(eye) See what changed in this snapshot', value: 'show' },
-      { label: '$(history) Go back to this snapshot', value: 'checkout' },
+      { label: '$(history) Go back to this snapshot',      value: 'checkout' },
       { label: '', kind: vscode.QuickPickItemKind.Separator, value: '' },
       { label: '$(close) Cancel', value: 'cancel' },
     ],
     { title: 'What would you like to do?' }
   )
-  if (!action || action.value === 'cancel' || action.value === '') return
+  if (!action || action.value === 'cancel' || !action.value) return
 
   if (action.value === 'show') {
     const terminal = vscode.window.createTerminal('Snapshot diff')
@@ -474,26 +405,29 @@ async function handleCommitClick(hash: string): Promise<void> {
   }
 
   if (action.value === 'checkout') {
-    const isDirty = currentState?.isDirty
+    const isDirty = currentState?.isDirty ?? false
+    const choices: string[] = isDirty
+      ? ['📸 Take snapshot first', '↩️ Go back anyway', 'Cancel']
+      : ['↩️ Go back', 'Cancel']
+
     const choice = await vscode.window.showWarningMessage(
       'Go back to this snapshot?',
       {
         modal: true,
         detail: isDirty
-          ? 'Your current unsaved work will be lost. Take a snapshot first if you want to keep it.'
-          : 'Your project will look exactly as it did at this point in time.',
+          ? 'You have unsaved changes. Take a snapshot first to keep them.'
+          : 'Your project will look exactly as it did at this moment.',
       },
-      ...(isDirty ? ['📸 Take snapshot first', '↩️ Go back anyway'] : ['↩️ Go back']),
-      'Cancel'
+      ...choices
     )
     if (!choice || choice === 'Cancel') return
+
     if (choice === '📸 Take snapshot first') {
-      const snap = await withFriendlyProgress('Saving snapshot...', async () =>
-        takeSnapshot(cwd)
-      )
+      const snap = await withFriendlyProgress('Saving snapshot...', () => takeSnapshot(cwd))
       handleResult(snap)
       if (!snap.ok) return
     }
+
     const terminal = vscode.window.createTerminal('Go Git It')
     terminal.sendText(`git checkout ${hash}`)
     terminal.show()

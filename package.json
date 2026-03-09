@@ -8,7 +8,11 @@
   "categories": ["SCM Providers", "Other"],
   "activationEvents": [
     "workspaceContains:.git",
-    "onStartupFinished"
+    "onStartupFinished",
+    "onCommand:go-git-it.buildNewProject",
+    "onCommand:go-git-it.openDifferentProject",
+    "onView:go-git-it-status",
+    "onView:go-git-it-tree"
   ],
   "main": "./out/extension.js",
   "contributes": {
