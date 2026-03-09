@@ -12,7 +12,10 @@
       "Bash(npm run compile 2>&1)",
       "Bash(open -a \"Visual Studio Code\" /Users/kiangolshan/Dev/Go-Git-It 2>&1 || open -a \"Cursor\" /Users/kiangolshan/Dev/Go-Git-It 2>&1)",
       "Bash(vsce package --no-dependencies 2>&1)",
-      "Bash(\"/Applications/Visual Studio Code.app/Contents/Resources/app/bin/code\" --install-extension /Users/kiangolshan/Dev/Go-Git-It/go-git-it-0.1.0.vsix 2>&1)"
+      "Bash(\"/Applications/Visual Studio Code.app/Contents/Resources/app/bin/code\" --install-extension /Users/kiangolshan/Dev/Go-Git-It/go-git-it-0.1.0.vsix 2>&1)",
+      "Bash(npm run compile 2>&1 && vsce package --no-dependencies 2>&1 | tail -5)",
+      "Bash(\"/Applications/Visual Studio Code.app/Contents/Resources/app/bin/code\" --install-extension /Users/kiangolshan/Dev/Go-Git-It/go-git-it-0.2.0.vsix --force 2>&1)",
+      "Bash(pkill -f \"Visual Studio Code\" 2>/dev/null; sleep 1; open -a \"Visual Studio Code\" /Users/kiangolshan/Dev/Go-Git-It)"
     ]
   }
 }
