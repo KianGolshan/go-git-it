@@ -1,0 +1,93 @@
+{
+  "name": "go-git-it",
+  "displayName": "Go Git It",
+  "description": "Version control for vibe-coders — no Git jargon, just friendly snapshots.",
+  "version": "0.1.0",
+  "publisher": "kiangolshan",
+  "engines": { "vscode": "^1.85.0" },
+  "categories": ["SCM Providers", "Other"],
+  "activationEvents": [
+    "workspaceContains:.git",
+    "onStartupFinished"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "go-git-it-container",
+          "title": "Project Timeline",
+          "icon": "$(git-branch)"
+        }
+      ]
+    },
+    "views": {
+      "go-git-it-container": [
+        { "id": "go-git-it-status", "name": "Actions", "type": "tree" },
+        { "id": "go-git-it-tree",   "name": "Timeline", "type": "webview" }
+      ]
+    },
+    "commands": [
+      { "command": "go-git-it.buildNewProject",      "title": "🏗️ Build a new project" },
+      { "command": "go-git-it.openDifferentProject", "title": "📂 Open a different project" },
+      { "command": "go-git-it.takeSnapshot",         "title": "📸 Take a snapshot" },
+      { "command": "go-git-it.pushToGitHub",         "title": "☁️ Send to GitHub" },
+      { "command": "go-git-it.pullLatest",           "title": "⬇️ Get latest from GitHub" },
+      { "command": "go-git-it.startExperiment",      "title": "🧪 Start a new experiment" },
+      { "command": "go-git-it.finishExperiment",     "title": "✅ Finish this experiment" },
+      { "command": "go-git-it.abandonExperiment",    "title": "🗑️ Abandon this experiment" },
+      { "command": "go-git-it.explainError",         "title": "❓ What's going on?" },
+      { "command": "go-git-it.openWalkthrough",      "title": "📖 How does this work?" }
+    ],
+    "menus": {
+      "view/title": [
+        { "command": "go-git-it.buildNewProject",      "when": "view == go-git-it-status" },
+        { "command": "go-git-it.openDifferentProject", "when": "view == go-git-it-status" }
+      ]
+    },
+    "walkthroughs": [
+      {
+        "id": "go-git-it.walkthrough",
+        "title": "Get started with Go Git It",
+        "description": "Learn how to save your work, back it up, and experiment safely.",
+        "steps": [
+          {
+            "id": "snapshot",
+            "title": "Taking your first snapshot",
+            "description": "A snapshot saves your work at this exact moment — like a save point in a game. Take one whenever you finish something that's working.\n[Take a Snapshot](command:go-git-it.takeSnapshot)",
+            "media": { "markdown": "media/walkthrough-snapshot.md" }
+          },
+          {
+            "id": "github",
+            "title": "Backing up to GitHub",
+            "description": "GitHub keeps a copy of your work online. If your computer is lost or broken, your project is safe.\n[Send to GitHub](command:go-git-it.pushToGitHub)",
+            "media": { "markdown": "media/walkthrough-github.md" }
+          },
+          {
+            "id": "experiment",
+            "title": "Starting an experiment",
+            "description": "Try risky ideas without fear. Experiments are completely separate from your main work — you can always abandon them.\n[Start an Experiment](command:go-git-it.startExperiment)",
+            "media": { "markdown": "media/walkthrough-experiment.md" }
+          },
+          {
+            "id": "rewind",
+            "title": "Coming back if something breaks",
+            "description": "The timeline on the left shows every snapshot you've taken. Click any snapshot to go back to that moment.",
+            "media": { "markdown": "media/walkthrough-rewind.md" }
+          }
+        ]
+      }
+    ]
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "lint": "eslint src --ext ts"
+  },
+  "devDependencies": {
+    "@types/vscode": "^1.85.0",
+    "@types/node": "^20.0.0",
+    "typescript": "^5.3.0"
+  }
+}

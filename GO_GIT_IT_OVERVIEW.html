@@ -1,0 +1,983 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Go Git It — System Overview</title>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+  font-size: 14px;
+  line-height: 1.6;
+  color: #475569;
+  background: #f8fafc;
+}
+
+.page { max-width: 1080px; margin: 0 auto; padding: 48px 24px 80px; }
+
+/* ── Typography ── */
+h1 { font-size: 36px; font-weight: 800; color: #0f172a; letter-spacing: -0.02em; }
+h1 span { color: #16a34a; }
+.subtitle { font-size: 16px; color: #64748b; margin-top: 6px; margin-bottom: 48px; }
+h2 { font-size: 20px; font-weight: 700; color: #0f172a; margin-bottom: 20px; padding-bottom: 10px; border-bottom: 2px solid #e2e8f0; }
+h3 { font-size: 14px; font-weight: 700; color: #0f172a; margin-bottom: 8px; }
+
+/* ── Section wrapper ── */
+.section { margin-bottom: 56px; }
+
+/* ── Cards ── */
+.card {
+  background: #fff;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 20px 24px;
+}
+
+/* ── Grid ── */
+.grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+.grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
+
+/* ── Callout boxes ── */
+.callout-info {
+  background: #eff6ff; border: 1.5px solid #93c5fd; border-radius: 8px;
+  padding: 14px 18px; margin-top: 16px; font-size: 13px; color: #1e40af;
+}
+.callout-warn {
+  background: #fef3c7; border: 1.5px solid #fbbf24; border-radius: 8px;
+  padding: 14px 18px; margin-top: 16px; font-size: 13px; color: #92400e;
+}
+.callout-info strong, .callout-warn strong { display: block; margin-bottom: 4px; }
+
+/* ── Tables ── */
+table { width: 100%; border-collapse: collapse; background: #fff; border: 1.5px solid #e2e8f0; border-radius: 10px; overflow: hidden; font-size: 13px; }
+thead th { background: #f8fafc; padding: 10px 14px; text-align: left; font-size: 10px; font-weight: 700; letter-spacing: 0.07em; text-transform: uppercase; color: #94a3b8; border-bottom: 1px solid #f1f5f9; }
+tbody td { padding: 10px 14px; border-bottom: 1px solid #f1f5f9; vertical-align: top; color: #334155; }
+tbody tr:last-child td { border-bottom: none; }
+
+/* ── Pill badges ── */
+.pill {
+  display: inline-block; border-radius: 20px; padding: 2px 10px;
+  font-size: 11px; font-weight: 600; white-space: nowrap;
+}
+.pill-green  { background: #dcfce7; color: #166534; }
+.pill-blue   { background: #dbeafe; color: #1e40af; }
+.pill-amber  { background: #fef3c7; color: #92400e; }
+.pill-gray   { background: #f1f5f9; color: #475569; }
+.pill-teal   { background: #ccfbf1; color: #134e4a; }
+.pill-red    { background: #fee2e2; color: #991b1b; }
+.pill-purple { background: #ede9fe; color: #5b21b6; }
+
+/* ── Git command badge ── */
+.git-badge {
+  display: inline-block; background: #0f172a; color: #86efac; border-radius: 4px;
+  padding: 1px 7px; font-size: 10px; font-family: 'SF Mono', 'Fira Code', monospace;
+  white-space: nowrap;
+}
+
+/* ── Data pipeline ── */
+.pipeline { display: flex; flex-wrap: wrap; align-items: stretch; gap: 0; margin-bottom: 8px; }
+.pipe-step {
+  position: relative; background: #fff; border: 1.5px solid #e2e8f0; border-radius: 8px;
+  padding: 16px 18px; flex: 1; min-width: 100px;
+  display: flex; flex-direction: column; gap: 6px;
+}
+.pipe-step + .pipe-step { margin-left: 28px; }
+.pipe-step + .pipe-step::before {
+  content: '›';
+  position: absolute; left: -22px; top: 50%; transform: translateY(-50%);
+  font-size: 22px; color: #94a3b8; font-weight: 300;
+}
+.pipe-num {
+  width: 22px; height: 22px; border-radius: 50%; display: flex; align-items: center;
+  justify-content: center; font-size: 11px; font-weight: 700; color: #fff; flex-shrink: 0;
+}
+.pipe-title { font-size: 12px; font-weight: 700; color: #0f172a; }
+.pipe-desc  { font-size: 11px; color: #64748b; line-height: 1.4; }
+
+/* Step number gradient colors */
+.sn-1  { background: #16a34a; }
+.sn-2  { background: #0d9488; }
+.sn-3  { background: #0ea5e9; }
+.sn-4  { background: #6366f1; }
+.sn-5  { background: #a855f7; }
+.sn-6  { background: #ec4899; }
+.sn-7  { background: #f59e0b; }
+.sn-8  { background: #ef4444; }
+.sn-9  { background: #64748b; }
+
+/* ── Architecture module list ── */
+.module-list { display: flex; flex-direction: column; gap: 10px; }
+.module-item { display: flex; gap: 12px; align-items: flex-start; }
+.module-icon { font-size: 18px; flex-shrink: 0; margin-top: 1px; }
+.module-name { font-size: 12px; font-weight: 700; color: #0f172a; font-family: 'SF Mono', 'Fira Code', monospace; }
+.module-desc { font-size: 12px; color: #64748b; }
+
+/* ── Panel structure cards ── */
+.panel-card { background: #fff; border: 1.5px solid #e2e8f0; border-radius: 10px; overflow: hidden; }
+.panel-card-header { background: #f8fafc; padding: 12px 16px; border-bottom: 1px solid #e2e8f0; }
+.panel-card-header h3 { margin: 0; }
+.panel-card-body { padding: 14px 16px; }
+.panel-item { display: flex; gap: 8px; align-items: baseline; padding: 3px 0; font-size: 12px; }
+.panel-item-label { color: #0f172a; font-weight: 500; }
+.panel-item-rule  { color: #94a3b8; font-size: 11px; }
+
+/* ── Action button cards ── */
+.btn-card { background: #fff; border: 1.5px solid #e2e8f0; border-radius: 10px; padding: 16px; display: flex; flex-direction: column; gap: 8px; }
+.btn-emoji { font-size: 24px; }
+.btn-name  { font-size: 13px; font-weight: 700; color: #0f172a; }
+.btn-desc  { font-size: 12px; color: #64748b; }
+.btn-ops   { font-size: 11px; color: #475569; }
+.btn-ops code { background: #f1f5f9; padding: 1px 5px; border-radius: 3px; font-size: 10px; }
+
+/* ── Wizard flow ── */
+.wizard-flow { display: flex; flex-direction: column; gap: 0; }
+.wizard-step {
+  display: flex; gap: 16px; align-items: flex-start; padding: 18px 0;
+  border-bottom: 1px solid #f1f5f9;
+}
+.wizard-step:last-child { border-bottom: none; }
+.wizard-num {
+  width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center;
+  justify-content: center; font-size: 13px; font-weight: 700; color: #fff; flex-shrink: 0;
+}
+.wizard-content h3 { font-size: 14px; margin-bottom: 4px; }
+.wizard-content p  { font-size: 13px; color: #64748b; }
+.wizard-arrow { text-align: center; color: #94a3b8; font-size: 20px; line-height: 1; margin: 2px 0 2px 23px; }
+
+/* ── Walkthrough steps ── */
+.walk-step {
+  display: flex; gap: 20px; align-items: flex-start;
+  padding: 20px 0; border-bottom: 1px solid #f1f5f9;
+}
+.walk-step:last-child { border-bottom: none; }
+.walk-circle {
+  width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center;
+  justify-content: center; font-size: 15px; font-weight: 800; color: #fff; flex-shrink: 0;
+}
+.walk-title  { font-size: 14px; font-weight: 700; color: #0f172a; margin-bottom: 4px; }
+.walk-desc   { font-size: 13px; color: #475569; margin-bottom: 8px; }
+.walk-result { font-size: 13px; color: #16a34a; font-style: italic; }
+.pills-row   { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 6px; }
+
+/* ── State machine ── */
+.state-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 10px 0; border-bottom: 1px solid #f1f5f9; font-size: 13px; }
+.state-row:last-child { border-bottom: none; }
+.state-arrow { color: #94a3b8; font-size: 16px; }
+
+/* ── Installation grid ── */
+.install-section h3 { font-size: 13px; font-weight: 700; color: #0f172a; margin-bottom: 10px; }
+.install-item { display: flex; gap: 10px; align-items: baseline; padding: 4px 0; font-size: 13px; }
+.install-num { width: 20px; height: 20px; background: #16a34a; color: #fff; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 700; flex-shrink: 0; }
+
+/* ── Footer ── */
+footer { text-align: center; padding-top: 40px; color: #94a3b8; font-size: 12px; border-top: 1px solid #e2e8f0; }
+
+/* ── Responsive ── */
+@media (max-width: 700px) {
+  .grid-2, .grid-3, .grid-4 { grid-template-columns: 1fr; }
+  .pipeline { flex-direction: column; }
+  .pipe-step + .pipe-step { margin-left: 0; margin-top: 24px; }
+  .pipe-step + .pipe-step::before { content: '↓'; left: 50%; top: -20px; transform: translateX(-50%); }
+  h1 { font-size: 26px; }
+}
+</style>
+</head>
+<body>
+<div class="page">
+
+<!-- ── HEADER ── -->
+<h1>Go <span>Git</span> It</h1>
+<p class="subtitle">VS Code extension for vibe-coders — version control without the vocabulary.</p>
+
+<!-- ══════════════════════════════════════════════════════════
+     1. DATA PIPELINE
+     ══════════════════════════════════════════════════════════ -->
+<div class="section">
+  <h2>1 · Data Pipeline — End-to-End Flow</h2>
+  <div class="pipeline">
+    <div class="pipe-step">
+      <div class="pipe-num sn-1">1</div>
+      <div class="pipe-title">Build Project</div>
+      <div class="pipe-desc">Create folder, init repo, write starter files</div>
+      <span class="git-badge">git init</span>
+    </div>
+    <div class="pipe-step">
+      <div class="pipe-num sn-2">2</div>
+      <div class="pipe-title">Take Snapshot</div>
+      <div class="pipe-desc">Stage all changes and commit with timestamp</div>
+      <span class="git-badge">git add -A &amp;&amp; git commit</span>
+    </div>
+    <div class="pipe-step">
+      <div class="pipe-num sn-3">3</div>
+      <div class="pipe-title">Send to GitHub</div>
+      <div class="pipe-desc">Push current branch to remote origin</div>
+      <span class="git-badge">git push</span>
+    </div>
+    <div class="pipe-step">
+      <div class="pipe-num sn-4">4</div>
+      <div class="pipe-title">Start Experiment</div>
+      <div class="pipe-desc">Branch off main line into experiment/*</div>
+      <span class="git-badge">git checkout -b</span>
+    </div>
+    <div class="pipe-step">
+      <div class="pipe-num sn-5">5</div>
+      <div class="pipe-title">Snapshot Experiment</div>
+      <div class="pipe-desc">Commit experiment progress safely</div>
+      <span class="git-badge">git commit</span>
+    </div>
+    <div class="pipe-step">
+      <div class="pipe-num sn-6">6</div>
+      <div class="pipe-title">Finish Experiment</div>
+      <div class="pipe-desc">Merge experiment back into main line</div>
+      <span class="git-badge">git merge --no-ff</span>
+    </div>
+    <div class="pipe-step">
+      <div class="pipe-num sn-7">7</div>
+      <div class="pipe-title">Get Latest</div>
+      <div class="pipe-desc">Fetch and pull remote changes safely</div>
+      <span class="git-badge">git fetch &amp;&amp; git pull</span>
+    </div>
+    <div class="pipe-step">
+      <div class="pipe-num sn-8">8</div>
+      <div class="pipe-title">Visual Timeline</div>
+      <div class="pipe-desc">Render commit history in sidebar webview</div>
+      <span class="git-badge">git log --format</span>
+    </div>
+    <div class="pipe-step">
+      <div class="pipe-num sn-9">9</div>
+      <div class="pipe-title">Switch Project</div>
+      <div class="pipe-desc">Open local repo or clone from GitHub</div>
+      <span class="git-badge">git clone</span>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════
+     2. ARCHITECTURE
+     ══════════════════════════════════════════════════════════ -->
+<div class="section">
+  <h2>2 · Extension Architecture</h2>
+  <div class="grid-2">
+    <div class="card">
+      <h3 style="margin-bottom:16px">Core Modules</h3>
+      <div class="module-list">
+        <div class="module-item">
+          <div class="module-icon">⚙️</div>
+          <div>
+            <div class="module-name">extension.ts</div>
+            <div class="module-desc">Activation, command registration, state orchestration. Entry point VS Code calls on load.</div>
+          </div>
+        </div>
+        <div class="module-item">
+          <div class="module-icon">🔧</div>
+          <div>
+            <div class="module-name">gitRunner.ts</div>
+            <div class="module-desc">All Git subprocess calls. No VS Code imports — fully testable in isolation. Returns typed GitResult objects, never throws.</div>
+          </div>
+        </div>
+        <div class="module-item">
+          <div class="module-icon">☁️</div>
+          <div>
+            <div class="module-name">githubSetup.ts</div>
+            <div class="module-desc">GitHub repo creation via <code style="font-size:11px;background:#f1f5f9;padding:1px 4px;border-radius:3px">gh</code> CLI. Falls back gracefully when CLI not installed.</div>
+          </div>
+        </div>
+        <div class="module-item">
+          <div class="module-icon">📂</div>
+          <div>
+            <div class="module-name">repoSwitcher.ts</div>
+            <div class="module-desc">Scans local dirs, queries recent workspaces, fetches GitHub repos. Merges into a unified QuickPick.</div>
+          </div>
+        </div>
+        <div class="module-item">
+          <div class="module-icon">❓</div>
+          <div>
+            <div class="module-name">errorExplainer.ts</div>
+            <div class="module-desc">Maps 4 error codes to warm plain-English copy. Renders a WebviewPanel — no raw Git output shown.</div>
+          </div>
+        </div>
+        <div class="module-item">
+          <div class="module-icon">🛠️</div>
+          <div>
+            <div class="module-name">uiHelpers.ts</div>
+            <div class="module-desc">Shared: withFriendlyProgress, showSuccess, slugify.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card">
+      <h3 style="margin-bottom:16px">UI Layer</h3>
+      <div class="module-list">
+        <div class="module-item">
+          <div class="module-icon">🌳</div>
+          <div>
+            <div class="module-name">statusProvider.ts</div>
+            <div class="module-desc">TreeDataProvider for the Actions view. Renders status rows and all 9 action buttons. Updates on every git operation.</div>
+          </div>
+        </div>
+        <div class="module-item">
+          <div class="module-icon">📊</div>
+          <div>
+            <div class="module-name">treeWebview.ts</div>
+            <div class="module-desc">WebviewViewProvider for the Timeline view. Renders commit nodes as a visual storyboard with color-coded dots.</div>
+          </div>
+        </div>
+        <div class="module-item">
+          <div class="module-icon">📌</div>
+          <div>
+            <div class="module-name">Status Bar Item</div>
+            <div class="module-desc">Live badge: <em>$(git-commit) N snapshots</em>. Shown when a git repo is open. Clicks open the walkthrough.</div>
+          </div>
+        </div>
+        <div class="module-item">
+          <div class="module-icon">😅</div>
+          <div>
+            <div class="module-name">Error Explainer Panel</div>
+            <div class="module-desc">WebviewPanel (beside editor) with emoji hero, 3-section layout, accessible action buttons ≥44px.</div>
+          </div>
+        </div>
+        <div class="module-item">
+          <div class="module-icon">📖</div>
+          <div>
+            <div class="module-name">Walkthrough</div>
+            <div class="module-desc">4-step VS Code walkthrough registered in package.json. Covers snapshot, GitHub, experiments, rewind.</div>
+          </div>
+        </div>
+      </div>
+      <div class="callout-info" style="margin-top:20px">
+        <strong>No backend required.</strong>
+        All operations run locally via Git subprocess calls. GitHub connectivity uses the <code style="font-size:11px">gh</code> CLI — optional and gracefully degraded.
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════
+     3. SIDE PANEL STRUCTURE
+     ══════════════════════════════════════════════════════════ -->
+<div class="section">
+  <h2>3 · Side Panel Structure</h2>
+  <div class="grid-2">
+    <div class="panel-card">
+      <div class="panel-card-header"><h3>📁 Status Section</h3></div>
+      <div class="panel-card-body">
+        <div class="panel-item"><span class="panel-item-label">📁 PROJECT</span><span class="panel-item-rule">— workspace folder name</span></div>
+        <div class="panel-item"><span class="panel-item-label">📍 WHERE YOU ARE</span><span class="panel-item-rule">— "Main line" or "Experiment: name"</span></div>
+        <div class="panel-item"><span class="panel-item-label">✅ Everything saved</span><span class="panel-item-rule">— committed + pushed</span></div>
+        <div class="panel-item"><span class="panel-item-label">🔵 Saved, not on GitHub</span><span class="panel-item-rule">— committed, not pushed</span></div>
+        <div class="panel-item"><span class="panel-item-label">🟡 Unsaved changes</span><span class="panel-item-rule">— dirty working tree</span></div>
+        <div class="panel-item"><span class="panel-item-label">⚠️ Not connected</span><span class="panel-item-rule">— no remote set</span></div>
+        <div class="panel-item"><span class="panel-item-label">👋 No project open</span><span class="panel-item-rule">— empty state, no .git</span></div>
+      </div>
+    </div>
+    <div class="panel-card">
+      <div class="panel-card-header"><h3>🏗️ Start Section</h3></div>
+      <div class="panel-card-body">
+        <div class="panel-item"><span class="panel-item-label">🏗️ Build a new project</span><span class="panel-item-rule">— always visible</span></div>
+        <div class="panel-item"><span class="panel-item-label">📂 Open a different project</span><span class="panel-item-rule">— always visible</span></div>
+      </div>
+    </div>
+    <div class="panel-card">
+      <div class="panel-card-header"><h3>💾 Your Work Section</h3></div>
+      <div class="panel-card-body">
+        <div class="panel-item"><span class="panel-item-label">📸 Take a snapshot</span><span class="panel-item-rule">— always visible</span></div>
+        <div class="panel-item"><span class="panel-item-label">☁️ Send to GitHub</span><span class="panel-item-rule">— always visible</span></div>
+        <div class="panel-item"><span class="panel-item-label">⬇️ Get latest from GitHub</span><span class="panel-item-rule">— always visible</span></div>
+      </div>
+    </div>
+    <div class="panel-card">
+      <div class="panel-card-header"><h3>🧪 Experiments &amp; Help</h3></div>
+      <div class="panel-card-body">
+        <div class="panel-item"><span class="panel-item-label">🧪 Start a new experiment</span><span class="panel-item-rule">— always visible</span></div>
+        <div class="panel-item"><span class="panel-item-label">✅ Finish this experiment</span><span class="panel-item-rule">— only on experiment/* branch</span></div>
+        <div class="panel-item"><span class="panel-item-label">🗑️ Abandon this experiment</span><span class="panel-item-rule">— only on experiment/* branch</span></div>
+        <div class="panel-item"><span class="panel-item-label">❓ What's going on?</span><span class="panel-item-rule">— only when lastError is set</span></div>
+        <div class="panel-item"><span class="panel-item-label">📖 How does this work?</span><span class="panel-item-rule">— always visible</span></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════
+     4. ACTION BUTTON REFERENCE
+     ══════════════════════════════════════════════════════════ -->
+<div class="section">
+  <h2>4 · Action Button Reference</h2>
+  <div class="grid-3">
+
+    <div class="btn-card">
+      <div class="btn-emoji">🏗️</div>
+      <div class="btn-name">Build a new project</div>
+      <div class="btn-desc">4-step wizard: name → location → GitHub → confirm</div>
+      <div class="btn-ops"><code>mkdir</code> <code>git init</code> <code>gh repo create</code></div>
+      <span class="pill pill-green">always visible</span>
+    </div>
+
+    <div class="btn-card">
+      <div class="btn-emoji">📂</div>
+      <div class="btn-name">Open a different project</div>
+      <div class="btn-desc">Repo picker merging local scan + GitHub repos</div>
+      <div class="btn-ops"><code>fs.readdir</code> <code>gh repo list</code> <code>git clone</code></div>
+      <span class="pill pill-green">always visible</span>
+    </div>
+
+    <div class="btn-card">
+      <div class="btn-emoji">📸</div>
+      <div class="btn-name">Take a snapshot</div>
+      <div class="btn-desc">Stage all &amp; commit with timestamp + optional summary</div>
+      <div class="btn-ops"><code>git add -A</code> <code>git commit -m</code></div>
+      <span class="pill pill-green">always visible</span>
+    </div>
+
+    <div class="btn-card">
+      <div class="btn-emoji">☁️</div>
+      <div class="btn-name">Send to GitHub</div>
+      <div class="btn-desc">Push current branch to origin</div>
+      <div class="btn-ops"><code>git push</code></div>
+      <span class="pill pill-green">always visible</span>
+    </div>
+
+    <div class="btn-card">
+      <div class="btn-emoji">⬇️</div>
+      <div class="btn-name">Get latest from GitHub</div>
+      <div class="btn-desc">Refuses if dirty; fetch then pull</div>
+      <div class="btn-ops"><code>git fetch</code> <code>git pull</code></div>
+      <span class="pill pill-green">always visible</span>
+    </div>
+
+    <div class="btn-card">
+      <div class="btn-emoji">🧪</div>
+      <div class="btn-name">Start a new experiment</div>
+      <div class="btn-desc">Creates and switches to experiment/[slug] branch</div>
+      <div class="btn-ops"><code>git checkout -b experiment/</code></div>
+      <span class="pill pill-green">always visible</span>
+    </div>
+
+    <div class="btn-card">
+      <div class="btn-emoji">✅</div>
+      <div class="btn-name">Finish this experiment</div>
+      <div class="btn-desc">Merge experiment into main with --no-ff</div>
+      <div class="btn-ops"><code>git checkout</code> <code>git merge --no-ff</code></div>
+      <span class="pill pill-teal">experiment branch only</span>
+    </div>
+
+    <div class="btn-card">
+      <div class="btn-emoji">🗑️</div>
+      <div class="btn-name">Abandon this experiment</div>
+      <div class="btn-desc">Switch to main and delete experiment branch</div>
+      <div class="btn-ops"><code>git checkout</code> <code>git branch -D</code></div>
+      <span class="pill pill-teal">experiment branch only</span>
+    </div>
+
+    <div class="btn-card">
+      <div class="btn-emoji">❓</div>
+      <div class="btn-name">What's going on?</div>
+      <div class="btn-desc">Opens error explainer webview with warm copy</div>
+      <div class="btn-ops">reads <code>lastError</code> state</div>
+      <span class="pill pill-amber">error state only</span>
+    </div>
+
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════
+     5. BUILD NEW PROJECT WIZARD
+     ══════════════════════════════════════════════════════════ -->
+<div class="section">
+  <h2>5 · Build New Project — 4-Step Wizard Flow</h2>
+  <div class="grid-2" style="align-items:start">
+    <div class="card">
+      <div class="wizard-flow">
+        <div class="wizard-step">
+          <div class="wizard-num sn-1">1</div>
+          <div class="wizard-content">
+            <h3>Name Your Project</h3>
+            <p>InputBox — "What are you building?" Validates non-empty, warns on special chars.</p>
+          </div>
+        </div>
+        <div class="wizard-arrow">↓</div>
+        <div class="wizard-step">
+          <div class="wizard-num sn-2">2</div>
+          <div class="wizard-content">
+            <h3>Where to Save It</h3>
+            <p>QuickPick — Documents (recommended) or custom folder via showOpenDialog.</p>
+          </div>
+        </div>
+        <div class="wizard-arrow">↓</div>
+        <div class="wizard-step">
+          <div class="wizard-num sn-3">3</div>
+          <div class="wizard-content">
+            <h3>Connect to GitHub?</h3>
+            <p>QuickPick — Yes (recommended) or skip. GitHub is optional; always prompted.</p>
+          </div>
+        </div>
+        <div class="wizard-arrow">↓</div>
+        <div class="wizard-step">
+          <div class="wizard-num sn-4">4</div>
+          <div class="wizard-content">
+            <h3>Ready to Build!</h3>
+            <p>Confirmation QuickPick showing name, path, GitHub choice, plus "Let's go!" and Cancel.</p>
+          </div>
+        </div>
+        <div class="wizard-arrow">↓</div>
+        <div class="wizard-step">
+          <div class="wizard-num sn-5">✓</div>
+          <div class="wizard-content">
+            <h3>Project Created</h3>
+            <p>mkdir → git init → README.md + .gitignore → git commit → gh repo create → vscode.openFolder</p>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div>
+      <div class="card" style="margin-bottom:16px">
+        <h3 style="margin-bottom:10px">Files Created Automatically</h3>
+        <div style="font-size:13px;color:#334155;line-height:1.8">
+          <div><strong>README.md</strong> — "# Project Name\nCreated on [date]. Happy building! 🚀"</div>
+          <div><strong>.gitignore</strong> — Standard Node/web: node_modules, dist, .env, .DS_Store, editor files</div>
+          <div><strong>First commit</strong> — "🎉 Started [project name]"</div>
+        </div>
+      </div>
+      <div class="callout-warn">
+        <strong>⚠️ gh CLI not installed fallback</strong>
+        Modal: "To connect to GitHub automatically, we need the GitHub CLI — it only takes a minute."
+        Buttons: "Open Setup Guide" → opens cli.github.com | "Skip for now" → continues without GitHub, reminder shown in status panel.
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════
+     6. REPO PICKER
+     ══════════════════════════════════════════════════════════ -->
+<div class="section">
+  <h2>6 · Open a Different Project — Repo Picker</h2>
+  <div class="grid-2">
+    <div class="card">
+      <h3 style="margin-bottom:14px">Data Sources (merged, deduped, sorted by recency)</h3>
+      <table>
+        <thead><tr><th>Source</th><th>How fetched</th></tr></thead>
+        <tbody>
+          <tr><td><strong>Recent workspaces</strong></td><td>vscode.getRecentlyOpenedWorkspaces command</td></tr>
+          <tr><td><strong>Local git repos</strong></td><td>Scan ~/Documents, ~/Desktop, ~/Projects, ~/dev, ~/Dev — max depth 3, look for .git folder</td></tr>
+          <tr><td><strong>GitHub repos</strong></td><td>gh repo list --limit 20 --json name,url,updatedAt</td></tr>
+          <tr><td><strong>Empty state</strong></td><td>Single item: "$(add) Build a new project instead"</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="card">
+      <h3 style="margin-bottom:14px">QuickPick Item Format</h3>
+      <table>
+        <thead><tr><th>Field</th><th>Value</th></tr></thead>
+        <tbody>
+          <tr><td><strong>label</strong></td><td>$(git-branch) [project name] or $(github) [name]</td></tr>
+          <tr><td><strong>description</strong></td><td>Local path or "On GitHub"</td></tr>
+          <tr><td><strong>detail</strong></td><td>"Last modified: Yesterday" (human-friendly date)</td></tr>
+          <tr><td><strong>Separators</strong></td><td>"── On this computer ──" / "── On GitHub ──"</td></tr>
+          <tr><td><strong>GitHub-only</strong></td><td>Prompt for clone path → git clone → vscode.openFolder</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════
+     7. GIT RUNNER FUNCTION REFERENCE
+     ══════════════════════════════════════════════════════════ -->
+<div class="section">
+  <h2>7 · Git Runner — Function Reference</h2>
+  <div class="callout-info" style="margin-bottom:16px">
+    <strong>GitResult contract</strong>
+    Every function returns <code style="font-size:11px">&#123; ok, message, code?, rawError? &#125;</code>.
+    <em>Never throws.</em> <code>message</code> is always plain English for the user.
+    <code>rawError</code> stores original stderr and is only shown in the error explainer if the user clicks "Show technical details."
+  </div>
+  <table>
+    <thead>
+      <tr><th>Function</th><th>Git Operations</th><th>Success Message</th><th>Error Code</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong>takeSnapshot</strong>(cwd, summary?)</td>
+        <td><code class="git-badge">git status --porcelain</code> → <code class="git-badge">git add -A</code> → <code class="git-badge">git commit</code></td>
+        <td>"Snapshot saved ✅ — if something breaks, you can always come back to this point."</td>
+        <td><span class="pill pill-amber">NOTHING_TO_COMMIT</span></td>
+      </tr>
+      <tr>
+        <td><strong>pushToRemote</strong>(cwd)</td>
+        <td><code class="git-badge">git push</code></td>
+        <td>"Your work is now backed up on GitHub ☁️"</td>
+        <td><span class="pill pill-amber">NO_UPSTREAM</span></td>
+      </tr>
+      <tr>
+        <td><strong>pullLatest</strong>(cwd)</td>
+        <td><code class="git-badge">git status</code> → <code class="git-badge">git fetch</code> → <code class="git-badge">git pull</code></td>
+        <td>"Got the latest — your files are up to date ⬇️" or "You already have everything."</td>
+        <td><span class="pill pill-amber">DIRTY_PULL</span></td>
+      </tr>
+      <tr>
+        <td><strong>createExperiment</strong>(cwd, name)</td>
+        <td><code class="git-badge">git checkout -b experiment/[slug]</code></td>
+        <td>"You're now experimenting safely 🧪 — nothing here affects your main work until you're ready."</td>
+        <td><span class="pill pill-gray">UNKNOWN</span></td>
+      </tr>
+      <tr>
+        <td><strong>mergeExperiment</strong>(cwd, default)</td>
+        <td><code class="git-badge">git checkout</code> → <code class="git-badge">git pull</code> → <code class="git-badge">git merge --no-ff</code></td>
+        <td>"Experiment merged into your main line ✅"</td>
+        <td><span class="pill pill-amber">MERGE_CONFLICT</span></td>
+      </tr>
+      <tr>
+        <td><strong>abandonExperiment</strong>(cwd, default)</td>
+        <td><code class="git-badge">git checkout [default]</code> → <code class="git-badge">git branch -D</code></td>
+        <td>"Experiment deleted — your main work is untouched."</td>
+        <td><span class="pill pill-gray">UNKNOWN</span></td>
+      </tr>
+      <tr>
+        <td><strong>getState</strong>(cwd)</td>
+        <td><code class="git-badge">git rev-parse</code> <code class="git-badge">git status</code> <code class="git-badge">git remote</code> <code class="git-badge">git log</code> <code class="git-badge">git log --remotes</code></td>
+        <td>Returns GitState object (no user message)</td>
+        <td>returns null if no .git</td>
+      </tr>
+      <tr>
+        <td><strong>initProject</strong>(path, name)</td>
+        <td><code class="git-badge">git init</code> → write files → <code class="git-badge">git add -A</code> → <code class="git-badge">git commit</code></td>
+        <td>"Project created! Your first snapshot is saved."</td>
+        <td><span class="pill pill-gray">UNKNOWN</span></td>
+      </tr>
+      <tr>
+        <td><strong>abortMerge</strong>(cwd)</td>
+        <td><code class="git-badge">git merge --abort</code></td>
+        <td>"Merge undone — your main work is back to normal."</td>
+        <td><span class="pill pill-gray">UNKNOWN</span></td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════
+     8. ERROR EXPLAINER
+     ══════════════════════════════════════════════════════════ -->
+<div class="section">
+  <h2>8 · Error Explainer — 4 Error States</h2>
+  <div class="callout-warn" style="margin-bottom:16px">
+    <strong>⚠️ Raw Git output is never shown to the user.</strong>
+    The error explainer translates every failure into warm, non-blaming plain English.
+    A "Show technical details" disclosure is available for power users, but hidden by default.
+  </div>
+  <table>
+    <thead>
+      <tr><th>Code</th><th>What We Tried</th><th>What Happened</th><th>What To Do Next</th><th>Action Button</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><span class="pill pill-amber">DIRTY_PULL</span></td>
+        <td>Get the latest version from GitHub</td>
+        <td>You have edits that aren't saved as a snapshot yet — downloading could overwrite your work.</td>
+        <td>Take a snapshot of what you have right now, then we'll get the latest.</td>
+        <td>"📸 Snapshot then get latest" → takeSnapshot() then pullLatest()</td>
+      </tr>
+      <tr>
+        <td><span class="pill pill-red">MERGE_CONFLICT</span></td>
+        <td>Merge your experiment into your main work</td>
+        <td>Two sets of changes touched the same part of a file. Your work is completely safe.</td>
+        <td>Undo the merge attempt and your work goes back to normal.</td>
+        <td>"↩️ Undo the merge" → git merge --abort</td>
+      </tr>
+      <tr>
+        <td><span class="pill pill-blue">NO_UPSTREAM</span></td>
+        <td>Back up your work to GitHub</td>
+        <td>This project isn't connected to a GitHub repository yet.</td>
+        <td>Your snapshots are safe on this computer. Connecting to GitHub is a one-time setup.</td>
+        <td>"🔗 Connect to GitHub" → GitHub setup flow</td>
+      </tr>
+      <tr>
+        <td><span class="pill pill-gray">NOTHING_TO_COMMIT</span></td>
+        <td>Save a snapshot</td>
+        <td>There's nothing new to save — files haven't changed since the last snapshot.</td>
+        <td>You're already up to date! Keep working and take a snapshot when you've made changes.</td>
+        <td>(none — no action needed)</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════
+     9. VISUAL TIMELINE WEBVIEW
+     ══════════════════════════════════════════════════════════ -->
+<div class="section">
+  <h2>9 · Visual Timeline Webview</h2>
+  <div class="grid-2">
+    <div class="card">
+      <h3 style="margin-bottom:14px">Node Color States</h3>
+      <table>
+        <thead><tr><th>Dot</th><th>Meaning</th><th>CSS Color</th></tr></thead>
+        <tbody>
+          <tr><td><span style="display:inline-block;width:12px;height:12px;background:#eab308;border-radius:50%;animation:pulse 1.5s infinite"></span> Pulsing yellow</td><td>Unsaved changes (dirty)</td><td>#eab308</td></tr>
+          <tr><td><span style="display:inline-block;width:12px;height:12px;background:#3b82f6;border-radius:50%"></span> Blue</td><td>Committed, not on GitHub</td><td>#3b82f6</td></tr>
+          <tr><td><span style="display:inline-block;width:12px;height:12px;background:#22c55e;border-radius:50%"></span> Green</td><td>Committed + pushed to GitHub</td><td>#22c55e</td></tr>
+          <tr><td><span style="display:inline-block;width:12px;height:12px;background:#6b7280;border-radius:50%"></span> Gray</td><td>Older pushed commits</td><td>#6b7280</td></tr>
+          <tr><td><span style="display:inline-block;width:12px;height:12px;background:#0ea5e9;border-radius:50%"></span> Teal</td><td>Experiment branch commits</td><td>#0ea5e9</td></tr>
+          <tr><td>Branch point</td><td>First shared commit between main and experiment</td><td>isBranchPoint flag</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="card">
+      <h3 style="margin-bottom:14px">Interactivity &amp; Behavior</h3>
+      <table>
+        <thead><tr><th>Trigger</th><th>Behavior</th></tr></thead>
+        <tbody>
+          <tr><td><strong>Click commit node</strong></td><td>QuickPick: "See what changed" (git show in terminal) or "Go back to this snapshot" (git checkout [hash])</td></tr>
+          <tr><td><strong>Go back confirmation</strong></td><td>Modal with "📸 Take snapshot first" / "↩️ Go back anyway" / Cancel. Warns if dirty.</td></tr>
+          <tr><td><strong>Hover tooltip</strong></td><td>Full date/time, full commit message, backed up status</td></tr>
+          <tr><td><strong>Auto-refresh</strong></td><td>After every git operation + onDidSaveTextDocument event</td></tr>
+          <tr><td><strong>Two-col layout</strong></td><td>When on experiment/* branch: main line left, experiment right, branch point connecting</td></tr>
+          <tr><td><strong>Theme-aware</strong></td><td>All colors use VS Code CSS variables; works in light and dark themes</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════
+     10. WALKTHROUGH — ALEX'S FIRST DAY
+     ══════════════════════════════════════════════════════════ -->
+<div class="section">
+  <h2>10 · End-to-End Walkthrough — Alex's First Day</h2>
+  <div class="card">
+    <div class="walk-step">
+      <div class="walk-circle sn-1">1</div>
+      <div>
+        <div class="walk-title">Build a new project</div>
+        <div class="walk-desc">Alex clicks 🏗️ Build a new project in the sidebar and completes the 4-step wizard.</div>
+        <div class="pills-row">
+          <span class="pill pill-green">name: "My Portfolio"</span>
+          <span class="pill pill-blue">location: ~/Documents</span>
+          <span class="pill pill-teal">GitHub: Yes</span>
+        </div>
+        <div class="walk-result">→ Folder created, first commit saved, repo live at github.com/alex/my-portfolio</div>
+      </div>
+    </div>
+    <div class="walk-step">
+      <div class="walk-circle sn-2">2</div>
+      <div>
+        <div class="walk-title">Work &amp; take a snapshot</div>
+        <div class="walk-desc">Alex builds the hero section, then clicks 📸 Take a snapshot and types a summary.</div>
+        <div class="pills-row">
+          <span class="pill pill-green">summary: "Added hero section"</span>
+        </div>
+        <div class="walk-result">→ "Snapshot saved ✅ — if something breaks, you can always come back to this point."</div>
+      </div>
+    </div>
+    <div class="walk-step">
+      <div class="walk-circle sn-3">3</div>
+      <div>
+        <div class="walk-title">Push to GitHub</div>
+        <div class="walk-desc">Alex clicks ☁️ Send to GitHub to back up the day's work.</div>
+        <div class="pills-row">
+          <span class="pill pill-blue">branch: main</span>
+        </div>
+        <div class="walk-result">→ "Your work is now backed up on GitHub ☁️" — dot turns green in timeline</div>
+      </div>
+    </div>
+    <div class="walk-step">
+      <div class="walk-circle sn-4">4</div>
+      <div>
+        <div class="walk-title">Start an experiment</div>
+        <div class="walk-desc">Alex wants to try a dark mode. Clicks 🧪 Start a new experiment and names it.</div>
+        <div class="pills-row">
+          <span class="pill pill-teal">name: "Dark mode"</span>
+          <span class="pill pill-teal">branch: experiment/dark-mode</span>
+        </div>
+        <div class="walk-result">→ "You're now experimenting safely 🧪 — nothing here affects your main work until you're ready."</div>
+      </div>
+    </div>
+    <div class="walk-step">
+      <div class="walk-circle sn-5">5</div>
+      <div>
+        <div class="walk-title">Merge the experiment</div>
+        <div class="walk-desc">Dark mode looks great! Alex clicks ✅ Finish this experiment and confirms.</div>
+        <div class="pills-row">
+          <span class="pill pill-green">merge: --no-ff</span>
+          <span class="pill pill-green">target: main</span>
+        </div>
+        <div class="walk-result">→ "Experiment merged into your main line ✅" — timeline returns to single column</div>
+      </div>
+    </div>
+    <div class="walk-step">
+      <div class="walk-circle sn-6">6</div>
+      <div>
+        <div class="walk-title">Switch to a different project</div>
+        <div class="walk-desc">Alex clicks 📂 Open a different project and picks "Recipe App" from the list.</div>
+        <div class="pills-row">
+          <span class="pill pill-gray">source: local scan</span>
+          <span class="pill pill-gray">path: ~/Documents/recipe-app</span>
+        </div>
+        <div class="walk-result">→ VS Code reopens with Recipe App. Timeline updates to show its history.</div>
+      </div>
+    </div>
+    <div class="walk-step">
+      <div class="walk-circle sn-7">7</div>
+      <div>
+        <div class="walk-title">Handle a DIRTY_PULL error</div>
+        <div class="walk-desc">Alex clicks ⬇️ Get latest while having unsaved changes. A warning appears.</div>
+        <div class="pills-row">
+          <span class="pill pill-amber">error: DIRTY_PULL</span>
+        </div>
+        <div class="walk-result">→ Clicks "📸 Snapshot then get latest" — work is saved, then latest is pulled safely</div>
+      </div>
+    </div>
+    <div class="walk-step">
+      <div class="walk-circle sn-8">8</div>
+      <div>
+        <div class="walk-title">Rewind to a previous snapshot</div>
+        <div class="walk-desc">Something broke. Alex clicks a green dot in the timeline from two days ago.</div>
+        <div class="pills-row">
+          <span class="pill pill-blue">action: "Go back to this snapshot"</span>
+          <span class="pill pill-green">confirms: "↩️ Go back anyway"</span>
+        </div>
+        <div class="walk-result">→ git checkout [hash] — project returns to that exact moment in time</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════
+     11. PACKAGE.JSON CONTRIBUTION POINTS
+     ══════════════════════════════════════════════════════════ -->
+<div class="section">
+  <h2>11 · package.json Contribution Points</h2>
+  <table>
+    <thead><tr><th>Contribution</th><th>Key / ID</th><th>Value / Detail</th></tr></thead>
+    <tbody>
+      <tr><td><strong>activationEvents</strong></td><td>workspaceContains</td><td>.git — activates when a git repo is open</td></tr>
+      <tr><td><strong>activationEvents</strong></td><td>onStartupFinished</td><td>Also activates after VS Code starts</td></tr>
+      <tr><td><strong>viewsContainers</strong></td><td>go-git-it-container</td><td>Activity bar entry: "Project Timeline", icon $(git-branch)</td></tr>
+      <tr><td><strong>views</strong></td><td>go-git-it-status</td><td>TreeView "Actions" (upper, ~40%)</td></tr>
+      <tr><td><strong>views</strong></td><td>go-git-it-tree</td><td>WebviewView "Timeline" (lower, ~60%)</td></tr>
+      <tr><td><strong>commands</strong></td><td>go-git-it.buildNewProject</td><td>🏗️ Build a new project</td></tr>
+      <tr><td><strong>commands</strong></td><td>go-git-it.openDifferentProject</td><td>📂 Open a different project</td></tr>
+      <tr><td><strong>commands</strong></td><td>go-git-it.takeSnapshot</td><td>📸 Take a snapshot</td></tr>
+      <tr><td><strong>commands</strong></td><td>go-git-it.pushToGitHub</td><td>☁️ Send to GitHub</td></tr>
+      <tr><td><strong>commands</strong></td><td>go-git-it.pullLatest</td><td>⬇️ Get latest from GitHub</td></tr>
+      <tr><td><strong>commands</strong></td><td>go-git-it.startExperiment</td><td>🧪 Start a new experiment</td></tr>
+      <tr><td><strong>commands</strong></td><td>go-git-it.finishExperiment</td><td>✅ Finish this experiment</td></tr>
+      <tr><td><strong>commands</strong></td><td>go-git-it.abandonExperiment</td><td>🗑️ Abandon this experiment</td></tr>
+      <tr><td><strong>commands</strong></td><td>go-git-it.explainError</td><td>❓ What's going on?</td></tr>
+      <tr><td><strong>commands</strong></td><td>go-git-it.openWalkthrough</td><td>📖 How does this work?</td></tr>
+      <tr><td><strong>walkthrough</strong></td><td>go-git-it.walkthrough</td><td>4 steps: snapshot, GitHub, experiment, rewind</td></tr>
+      <tr><td><strong>engines.vscode</strong></td><td>vscode</td><td>^1.85.0</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════
+     12. BRANCH STATE MACHINE
+     ══════════════════════════════════════════════════════════ -->
+<div class="section">
+  <h2>12 · Branch State Machine</h2>
+  <div class="card">
+    <div class="state-row">
+      <span class="pill pill-gray">no .git</span>
+      <span class="state-arrow">→ git init →</span>
+      <span class="pill pill-green">main (clean)</span>
+    </div>
+    <div class="state-row">
+      <span class="pill pill-green">main (clean)</span>
+      <span class="state-arrow">→ edit files →</span>
+      <span class="pill pill-amber">main (dirty)</span>
+      <span class="state-arrow">→ take snapshot →</span>
+      <span class="pill pill-blue">main (committed)</span>
+      <span class="state-arrow">→ send to GitHub →</span>
+      <span class="pill pill-green">main (pushed)</span>
+    </div>
+    <div class="state-row">
+      <span class="pill pill-green">main (clean)</span>
+      <span class="state-arrow">→ start experiment →</span>
+      <span class="pill pill-teal">experiment/* (clean)</span>
+      <span class="state-arrow">→ snapshot →</span>
+      <span class="pill pill-teal">experiment/* (committed)</span>
+    </div>
+    <div class="state-row">
+      <span class="pill pill-teal">experiment/* (committed)</span>
+      <span class="state-arrow">→ finish experiment →</span>
+      <span class="pill pill-green">main (merged)</span>
+    </div>
+    <div class="state-row">
+      <span class="pill pill-teal">experiment/* (committed)</span>
+      <span class="state-arrow">→ finish experiment (conflict) →</span>
+      <span class="pill pill-red">MERGE_CONFLICT</span>
+      <span class="state-arrow">→ undo merge →</span>
+      <span class="pill pill-green">main (clean)</span>
+    </div>
+    <div class="state-row">
+      <span class="pill pill-teal">experiment/* (any)</span>
+      <span class="state-arrow">→ abandon experiment →</span>
+      <span class="pill pill-green">main (clean)</span>
+      <span style="font-size:12px;color:#94a3b8;margin-left:8px">branch permanently deleted</span>
+    </div>
+    <div class="state-row">
+      <span class="pill pill-amber">main (dirty)</span>
+      <span class="state-arrow">→ get latest →</span>
+      <span class="pill pill-red">DIRTY_PULL</span>
+      <span class="state-arrow">→ snapshot then pull →</span>
+      <span class="pill pill-green">main (up to date)</span>
+    </div>
+    <div class="state-row">
+      <span class="pill pill-blue">main (committed)</span>
+      <span class="state-arrow">→ send to GitHub (no remote) →</span>
+      <span class="pill pill-red">NO_UPSTREAM</span>
+      <span class="state-arrow">→ connect to GitHub →</span>
+      <span class="pill pill-green">main (pushed)</span>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════
+     13. INSTALLATION & SETUP
+     ══════════════════════════════════════════════════════════ -->
+<div class="section">
+  <h2>13 · Installation &amp; Setup</h2>
+  <div class="grid-2">
+    <div class="card install-section">
+      <h3>Installing Go Git It</h3>
+      <div class="install-item"><div class="install-num">1</div><div>Open VS Code or Cursor and go to the Extensions panel (⇧⌘X)</div></div>
+      <div class="install-item"><div class="install-num">2</div><div>Search "Go Git It" and click Install</div></div>
+      <div class="install-item"><div class="install-num">3</div><div>The <strong>Project Timeline</strong> icon appears in the Activity Bar immediately</div></div>
+      <div class="install-item"><div class="install-num">4</div><div>Open any folder with a .git directory — the extension activates automatically</div></div>
+      <div class="install-item"><div class="install-num">5</div><div>A first-run walkthrough launches with 4 friendly steps</div></div>
+      <div class="install-item"><div class="install-num">6</div><div><strong>No configuration required</strong> — works out of the box</div></div>
+      <div style="margin-top:14px;font-size:12px;color:#64748b">
+        <strong>GitHub CLI (optional):</strong> Install from <a href="https://cli.github.com" style="color:#16a34a">cli.github.com</a> to enable automatic GitHub repo creation. The extension works fully without it — GitHub connectivity is gracefully degraded.
+      </div>
+    </div>
+    <div class="card install-section">
+      <h3>Runtime Requirements</h3>
+      <table>
+        <thead><tr><th>Requirement</th><th>Details</th></tr></thead>
+        <tbody>
+          <tr><td><strong>VS Code</strong></td><td>≥ 1.85.0 (January 2024)</td></tr>
+          <tr><td><strong>Git</strong></td><td>≥ 2.0 — must be on system PATH</td></tr>
+          <tr><td><strong>Node.js</strong></td><td>Bundled with VS Code — no separate install</td></tr>
+          <tr><td><strong>gh CLI</strong></td><td>Optional — for GitHub repo creation &amp; listing</td></tr>
+          <tr><td><strong>Internet</strong></td><td>Optional — all local git operations work offline</td></tr>
+          <tr><td><strong>macOS</strong></td><td>✅ Fully supported</td></tr>
+          <tr><td><strong>Windows</strong></td><td>✅ Supported (paths use path.join)</td></tr>
+          <tr><td><strong>Linux</strong></td><td>✅ Supported</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- ── FOOTER ── -->
+<footer>
+  Go Git It — System Overview Document — Generated March 8, 2026
+</footer>
+
+</div>
+</body>
+</html>

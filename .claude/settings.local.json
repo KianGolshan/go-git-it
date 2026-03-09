@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(ls /Users/kiangolshan/Dev/Go-Git-It && git -C /Users/kiangolshan/Dev/Go-Git-It status 2>&1)",
+      "Bash(which git && git --version)",
+      "Bash(xcode-select --install 2>&1 || echo \"Already installing or installed\")",
+      "Bash(git init && git remote add origin https://github.com/kiangolshan/Go-Git-It.git && git branch -M main)",
+      "Bash(git -C /Users/kiangolshan/Dev/Go-Git-It remote -v)",
+      "Bash(npm install 2>&1)",
+      "Bash(npx tsc --noEmit 2>&1)",
+      "Bash(npx tsc -p . 2>&1)"
+    ]
+  }
+}

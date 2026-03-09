@@ -1,0 +1,9 @@
+/* Go Git It — Tree webview styles */
+/* All colors use VS Code theme variables for light/dark compatibility */
+
+:root {
+  --node-pushed: #22c55e;
+  --node-local:  #3b82f6;
+  --node-dirty:  #eab308;
+  --node-old:    #6b7280;
+}
