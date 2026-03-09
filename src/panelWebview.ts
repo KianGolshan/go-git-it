@@ -142,6 +142,22 @@ html, body {
   white-space: nowrap;
   text-transform: uppercase;
 }
+.btn-refresh {
+  background: none;
+  border: none;
+  color: var(--vscode-descriptionForeground);
+  cursor: pointer;
+  font-size: 14px;
+  line-height: 1;
+  padding: 2px 4px;
+  border-radius: 3px;
+  flex-shrink: 0;
+  transition: color 0.1s, background 0.1s;
+}
+.btn-refresh:hover {
+  color: var(--vscode-foreground);
+  background: var(--vscode-toolbar-hoverBackground);
+}
 
 /* ── Status bar ────────────────────────────────────────────────────────── */
 .status-bar {
@@ -380,7 +396,10 @@ html, body {
   <!-- Header -->
   <div class="header">
     <span class="header-logo">Go Git It</span>
-    <span class="branch-badge">${escapeHtml(branchLabel)}</span>
+    <div style="display:flex;align-items:center;gap:6px;min-width:0;overflow:hidden">
+      <span class="branch-badge">${escapeHtml(branchLabel)}</span>
+      <button class="btn-refresh" data-cmd="refresh" title="Refresh status">↻</button>
+    </div>
   </div>
 
   <!-- Status -->

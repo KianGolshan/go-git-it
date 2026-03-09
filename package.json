@@ -38,6 +38,7 @@
       { "command": "go-git-it.startExperiment",      "title": "🧪 Start a new experiment" },
       { "command": "go-git-it.finishExperiment",     "title": "✅ Finish this experiment" },
       { "command": "go-git-it.abandonExperiment",    "title": "🗑️ Abandon this experiment" },
+      { "command": "go-git-it.refresh",               "title": "↻ Refresh status" },
       { "command": "go-git-it.explainError",         "title": "❓ What's going on?" },
       { "command": "go-git-it.openWalkthrough",      "title": "📖 How does this work?" },
       { "command": "go-git-it.openDemo",             "title": "🎬 Demo: Go Git It Walkthrough" }

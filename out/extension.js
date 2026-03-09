@@ -52,6 +52,8 @@ let currentState;
 let panelProvider;
 let statusBarItem;
 let gitWatcher;
+let debounceTimer;
+let pollInterval;
 // ── Helpers ───────────────────────────────────────────────────────────────────
 function getCwd() {
     return vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
@@ -98,10 +100,16 @@ function handleResult(result) {
         });
     }
 }
+/** Debounced refresh — avoids hammering git status on every keystroke */
+function debouncedRefresh() {
+    if (debounceTimer)
+        clearTimeout(debounceTimer);
+    debounceTimer = setTimeout(() => refreshState(), 800);
+}
 function watchGitDir(cwd) {
     gitWatcher?.dispose();
-    // Watch .git/HEAD and .git/index to catch branch switches and external commits
-    const pattern = new vscode.RelativePattern(cwd, '.git/{HEAD,index,COMMIT_EDITMSG}');
+    // Catch branch switches, commits, and staging from terminal
+    const pattern = new vscode.RelativePattern(cwd, '.git/{HEAD,index,COMMIT_EDITMSG,MERGE_HEAD}');
     gitWatcher = vscode.workspace.createFileSystemWatcher(pattern, false, false, true);
     gitWatcher.onDidChange(() => refreshState());
     gitWatcher.onDidCreate(() => refreshState());
@@ -118,6 +126,7 @@ function activate(context) {
         webviewOptions: { retainContextWhenHidden: true }
     }));
     const commands = [
+        ['go-git-it.refresh', async () => { await refreshState(); }],
         ['go-git-it.buildNewProject', cmdBuildNewProject],
         ['go-git-it.openDifferentProject', cmdOpenDifferentProject],
         ['go-git-it.takeSnapshot', cmdTakeSnapshot],
@@ -136,13 +145,21 @@ function activate(context) {
     for (const [id, handler] of commands) {
         ctx.subscriptions.push(vscode.commands.registerCommand(id, handler));
     }
-    // Watch workspace changes
+    // Refresh when user edits any file (debounced — catches dirty state immediately)
+    ctx.subscriptions.push(vscode.workspace.onDidChangeTextDocument(() => debouncedRefresh()));
+    // Refresh on save (immediate — catches clean state after save)
+    ctx.subscriptions.push(vscode.workspace.onDidSaveTextDocument(() => refreshState()));
+    // Refresh when workspace folders change
     ctx.subscriptions.push(vscode.workspace.onDidChangeWorkspaceFolders(() => {
         const cwd = getCwd();
         if (cwd)
             watchGitDir(cwd);
         refreshState();
     }));
+    // Polling fallback — catches anything the watchers miss (e.g. terminal git ops)
+    pollInterval = setInterval(() => refreshState(), 15000);
+    ctx.subscriptions.push({ dispose: () => { if (pollInterval)
+            clearInterval(pollInterval); } });
     // Initial refresh
     const cwd = getCwd();
     if (cwd)
@@ -151,6 +168,10 @@ function activate(context) {
 }
 function deactivate() {
     gitWatcher?.dispose();
+    if (debounceTimer)
+        clearTimeout(debounceTimer);
+    if (pollInterval)
+        clearInterval(pollInterval);
 }
 // ── Command handlers ──────────────────────────────────────────────────────────
 async function cmdTakeSnapshot() {
