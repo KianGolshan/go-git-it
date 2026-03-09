@@ -39,7 +39,8 @@
       { "command": "go-git-it.finishExperiment",     "title": "✅ Finish this experiment" },
       { "command": "go-git-it.abandonExperiment",    "title": "🗑️ Abandon this experiment" },
       { "command": "go-git-it.explainError",         "title": "❓ What's going on?" },
-      { "command": "go-git-it.openWalkthrough",      "title": "📖 How does this work?" }
+      { "command": "go-git-it.openWalkthrough",      "title": "📖 How does this work?" },
+      { "command": "go-git-it.openDemo",             "title": "🎬 Demo: Go Git It Walkthrough" }
     ],
     "menus": {},
     "walkthroughs": [
@@ -71,6 +72,61 @@
             "title": "Coming back if something breaks",
             "description": "The timeline on the left shows every snapshot you've taken. Click any snapshot to go back to that moment.",
             "media": { "markdown": "media/walkthrough-rewind.md" }
+          }
+        ]
+      },
+      {
+        "id": "go-git-it.demo",
+        "title": "Demo: Go Git It Walkthrough",
+        "description": "A complete start-to-finish example — from creating a project to experimenting and rewinding.",
+        "steps": [
+          {
+            "id": "demo-start",
+            "title": "Step 1 — Start or open a project",
+            "description": "Every project needs a home. You can build a brand new one or open something you've already been working on.\n\n[🏗️ Build a new project](command:go-git-it.buildNewProject)\n[📂 Open a different project](command:go-git-it.openDifferentProject)",
+            "media": { "markdown": "media/demo-01-start.md" }
+          },
+          {
+            "id": "demo-first-snapshot",
+            "title": "Step 2 — Take your first snapshot",
+            "description": "You've set up your project and written some code. Time to save your progress.\n\n[📸 Take a snapshot](command:go-git-it.takeSnapshot)",
+            "media": { "markdown": "media/demo-02-first-snapshot.md" }
+          },
+          {
+            "id": "demo-github",
+            "title": "Step 3 — Send your work to GitHub",
+            "description": "Your snapshot is saved on your computer. Now back it up online so it's safe no matter what.\n\n[☁️ Send to GitHub](command:go-git-it.pushToGitHub)",
+            "media": { "markdown": "media/demo-03-github.md" }
+          },
+          {
+            "id": "demo-keep-working",
+            "title": "Step 4 — Keep working and snapshotting",
+            "description": "Build more features. Take a snapshot whenever something is working. Think of it as saving your game.\n\n[📸 Take a snapshot](command:go-git-it.takeSnapshot)",
+            "media": { "markdown": "media/demo-04-keep-working.md" }
+          },
+          {
+            "id": "demo-experiment",
+            "title": "Step 5 — Try something risky with an experiment",
+            "description": "You want to try a big redesign but don't want to break what's working. Start an experiment.\n\n[🧪 Start a new experiment](command:go-git-it.startExperiment)",
+            "media": { "markdown": "media/demo-05-experiment.md" }
+          },
+          {
+            "id": "demo-experiment-work",
+            "title": "Step 6 — Work inside the experiment",
+            "description": "Make changes, take snapshots, break things. Your main line is completely untouched.\n\n[📸 Take a snapshot](command:go-git-it.takeSnapshot)",
+            "media": { "markdown": "media/demo-06-experiment-work.md" }
+          },
+          {
+            "id": "demo-finish",
+            "title": "Step 7 — Finish or abandon the experiment",
+            "description": "The experiment worked — merge it in. Or it didn't — abandon it. Either way, your main work is safe.\n\n[✅ Finish this experiment](command:go-git-it.finishExperiment)\n[🗑️ Abandon this experiment](command:go-git-it.abandonExperiment)",
+            "media": { "markdown": "media/demo-07-finish.md" }
+          },
+          {
+            "id": "demo-rewind",
+            "title": "Step 8 — Go back if something breaks",
+            "description": "Something went wrong. No problem — click any dot in the timeline to rewind to that moment.",
+            "media": { "markdown": "media/demo-08-rewind.md" }
           }
         ]
       }

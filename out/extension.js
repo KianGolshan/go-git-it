@@ -128,6 +128,7 @@ function activate(context) {
         ['go-git-it.abandonExperiment', cmdAbandonExperiment],
         ['go-git-it.explainError', cmdExplainError],
         ['go-git-it.openWalkthrough', cmdOpenWalkthrough],
+        ['go-git-it.openDemo', cmdOpenDemo],
         ['go-git-it.connectToGitHub', cmdConnectToGitHub],
         ['go-git-it.snapshotThenPull', cmdSnapshotThenPull],
         ['go-git-it.abortMerge', cmdAbortMerge],
@@ -242,6 +243,9 @@ async function cmdExplainError() {
 }
 async function cmdOpenWalkthrough() {
     await vscode.commands.executeCommand('workbench.action.openWalkthrough', 'kiangolshan.go-git-it#go-git-it.walkthrough');
+}
+async function cmdOpenDemo() {
+    await vscode.commands.executeCommand('workbench.action.openWalkthrough', 'kiangolshan.go-git-it#go-git-it.demo');
 }
 async function cmdConnectToGitHub() {
     const cwd = getCwd();

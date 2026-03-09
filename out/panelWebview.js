@@ -436,6 +436,9 @@ html, body {
         <button class="btn-secondary" data-cmd="openWalkthrough">
           <span class="icon">📖</span> How does this work?
         </button>
+        <button class="btn-secondary" data-cmd="openDemo">
+          <span class="icon">🎬</span> Demo: Go Git It Walkthrough
+        </button>
       </div>
 
       <div class="divider"></div>
