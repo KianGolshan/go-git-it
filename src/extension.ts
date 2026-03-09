@@ -239,7 +239,7 @@ async function cmdExplainError(): Promise<void> {
 }
 
 async function cmdOpenWalkthrough(): Promise<void> {
-  await vscode.commands.executeCommand('workbench.action.openWalkthrough', 'go-git-it.go-git-it.walkthrough')
+  await vscode.commands.executeCommand('workbench.action.openWalkthrough', 'kiangolshan.go-git-it#go-git-it.walkthrough')
 }
 
 async function cmdConnectToGitHub(): Promise<void> {

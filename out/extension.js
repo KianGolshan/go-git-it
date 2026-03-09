@@ -241,7 +241,7 @@ async function cmdExplainError() {
     (0, errorExplainer_1.showErrorExplainer)(ctx, lastError);
 }
 async function cmdOpenWalkthrough() {
-    await vscode.commands.executeCommand('workbench.action.openWalkthrough', 'go-git-it.go-git-it.walkthrough');
+    await vscode.commands.executeCommand('workbench.action.openWalkthrough', 'kiangolshan.go-git-it#go-git-it.walkthrough');
 }
 async function cmdConnectToGitHub() {
     const cwd = getCwd();
