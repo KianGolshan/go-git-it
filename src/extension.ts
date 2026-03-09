@@ -12,8 +12,7 @@ import {
 } from './gitRunner'
 import { isGhCliAvailable, createGithubRepo, showGhCliMissingModal } from './githubSetup'
 import { showRepoSwitcher } from './repoSwitcher'
-import { StatusProvider } from './statusProvider'
-import { TreeWebviewProvider } from './treeWebview'
+import { PanelWebviewProvider } from './panelWebview'
 import { showErrorExplainer } from './errorExplainer'
 import { withFriendlyProgress, showSuccess, slugify } from './uiHelpers'
 
@@ -22,8 +21,7 @@ import { withFriendlyProgress, showSuccess, slugify } from './uiHelpers'
 let ctx: vscode.ExtensionContext
 let lastError: GitResult | undefined
 let currentState: GitState | undefined
-let statusProvider: StatusProvider
-let treeProvider: TreeWebviewProvider
+let panelProvider: PanelWebviewProvider
 let statusBarItem: vscode.StatusBarItem
 let gitWatcher: vscode.FileSystemWatcher | undefined
 
@@ -36,14 +34,14 @@ function getCwd(): string | undefined {
 async function refreshState(): Promise<void> {
   const cwd = getCwd()
   if (!cwd) {
-    statusProvider.update(null, !!lastError)
+    panelProvider.update(null, !!lastError)
     statusBarItem.hide()
     return
   }
 
   const gitOk = await isGitAvailable()
   if (!gitOk) {
-    statusProvider.update(null, false, true)
+    panelProvider.update(null, false)
     statusBarItem.hide()
     return
   }
@@ -52,7 +50,6 @@ async function refreshState(): Promise<void> {
   currentState = state ?? undefined
 
   if (state) {
-    treeProvider.update(state)
     const n = state.commits.length
     statusBarItem.text = `$(git-commit) ${n} snapshot${n !== 1 ? 's' : ''}`
     statusBarItem.tooltip = `Go Git It — ${state.displayBranch}`
@@ -61,17 +58,17 @@ async function refreshState(): Promise<void> {
     statusBarItem.hide()
   }
 
-  statusProvider.update(state, !!lastError)
+  panelProvider.update(state, !!lastError)
 }
 
 function handleResult(result: GitResult): void {
   if (result.ok) {
     lastError = undefined
     showSuccess(result.message)
-    statusProvider.update(currentState ?? null, false)
+    panelProvider.update(currentState ?? null, false)
   } else {
     lastError = result
-    statusProvider.update(currentState ?? null, true)
+    panelProvider.update(currentState ?? null, true)
     const BTN = "What's going on?"
     vscode.window.showWarningMessage(result.message, BTN).then(choice => {
       if (choice === BTN) vscode.commands.executeCommand('go-git-it.explainError')
@@ -98,12 +95,16 @@ export function activate(context: vscode.ExtensionContext): void {
   statusBarItem.command = 'go-git-it.openWalkthrough'
   ctx.subscriptions.push(statusBarItem)
 
-  statusProvider = new StatusProvider()
-  treeProvider = new TreeWebviewProvider(ctx, handleCommitClick)
+  panelProvider = new PanelWebviewProvider(
+    ctx,
+    (cmd) => vscode.commands.executeCommand(`go-git-it.${cmd}`),
+    handleCommitClick
+  )
 
   ctx.subscriptions.push(
-    vscode.window.registerTreeDataProvider('go-git-it-status', statusProvider),
-    vscode.window.registerWebviewViewProvider('go-git-it-tree', treeProvider)
+    vscode.window.registerWebviewViewProvider('go-git-it-panel', panelProvider, {
+      webviewOptions: { retainContextWhenHidden: true }
+    })
   )
 
   const commands: [string, () => Promise<void>][] = [

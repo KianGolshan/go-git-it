@@ -2,7 +2,7 @@
   "name": "go-git-it",
   "displayName": "Go Git It",
   "description": "Version control for vibe-coders — no Git jargon, just friendly snapshots.",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "publisher": "kiangolshan",
   "engines": { "vscode": "^1.85.0" },
   "categories": ["SCM Providers", "Other"],
@@ -11,8 +11,7 @@
     "onStartupFinished",
     "onCommand:go-git-it.buildNewProject",
     "onCommand:go-git-it.openDifferentProject",
-    "onView:go-git-it-status",
-    "onView:go-git-it-tree"
+    "onView:go-git-it-panel"
   ],
   "main": "./out/extension.js",
   "contributes": {
@@ -27,8 +26,7 @@
     },
     "views": {
       "go-git-it-container": [
-        { "id": "go-git-it-status", "name": "Actions", "type": "tree" },
-        { "id": "go-git-it-tree",   "name": "Timeline", "type": "webview" }
+        { "id": "go-git-it-panel", "name": "Go Git It", "type": "webview" }
       ]
     },
     "commands": [
@@ -43,12 +41,7 @@
       { "command": "go-git-it.explainError",         "title": "❓ What's going on?" },
       { "command": "go-git-it.openWalkthrough",      "title": "📖 How does this work?" }
     ],
-    "menus": {
-      "view/title": [
-        { "command": "go-git-it.buildNewProject",      "when": "view == go-git-it-status" },
-        { "command": "go-git-it.openDifferentProject", "when": "view == go-git-it-status" }
-      ]
-    },
+    "menus": {},
     "walkthroughs": [
       {
         "id": "go-git-it.walkthrough",

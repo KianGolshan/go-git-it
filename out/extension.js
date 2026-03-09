@@ -42,16 +42,14 @@ const os = __importStar(require("os"));
 const gitRunner_1 = require("./gitRunner");
 const githubSetup_1 = require("./githubSetup");
 const repoSwitcher_1 = require("./repoSwitcher");
-const statusProvider_1 = require("./statusProvider");
-const treeWebview_1 = require("./treeWebview");
+const panelWebview_1 = require("./panelWebview");
 const errorExplainer_1 = require("./errorExplainer");
 const uiHelpers_1 = require("./uiHelpers");
 // ── Module-level state ────────────────────────────────────────────────────────
 let ctx;
 let lastError;
 let currentState;
-let statusProvider;
-let treeProvider;
+let panelProvider;
 let statusBarItem;
 let gitWatcher;
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -61,20 +59,19 @@ function getCwd() {
 async function refreshState() {
     const cwd = getCwd();
     if (!cwd) {
-        statusProvider.update(null, !!lastError);
+        panelProvider.update(null, !!lastError);
         statusBarItem.hide();
         return;
     }
     const gitOk = await (0, gitRunner_1.isGitAvailable)();
     if (!gitOk) {
-        statusProvider.update(null, false, true);
+        panelProvider.update(null, false);
         statusBarItem.hide();
         return;
     }
     const state = await (0, gitRunner_1.getState)(cwd);
     currentState = state ?? undefined;
     if (state) {
-        treeProvider.update(state);
         const n = state.commits.length;
         statusBarItem.text = `$(git-commit) ${n} snapshot${n !== 1 ? 's' : ''}`;
         statusBarItem.tooltip = `Go Git It — ${state.displayBranch}`;
@@ -83,17 +80,17 @@ async function refreshState() {
     else {
         statusBarItem.hide();
     }
-    statusProvider.update(state, !!lastError);
+    panelProvider.update(state, !!lastError);
 }
 function handleResult(result) {
     if (result.ok) {
         lastError = undefined;
         (0, uiHelpers_1.showSuccess)(result.message);
-        statusProvider.update(currentState ?? null, false);
+        panelProvider.update(currentState ?? null, false);
     }
     else {
         lastError = result;
-        statusProvider.update(currentState ?? null, true);
+        panelProvider.update(currentState ?? null, true);
         const BTN = "What's going on?";
         vscode.window.showWarningMessage(result.message, BTN).then(choice => {
             if (choice === BTN)
@@ -116,9 +113,10 @@ function activate(context) {
     statusBarItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 100);
     statusBarItem.command = 'go-git-it.openWalkthrough';
     ctx.subscriptions.push(statusBarItem);
-    statusProvider = new statusProvider_1.StatusProvider();
-    treeProvider = new treeWebview_1.TreeWebviewProvider(ctx, handleCommitClick);
-    ctx.subscriptions.push(vscode.window.registerTreeDataProvider('go-git-it-status', statusProvider), vscode.window.registerWebviewViewProvider('go-git-it-tree', treeProvider));
+    panelProvider = new panelWebview_1.PanelWebviewProvider(ctx, (cmd) => vscode.commands.executeCommand(`go-git-it.${cmd}`), handleCommitClick);
+    ctx.subscriptions.push(vscode.window.registerWebviewViewProvider('go-git-it-panel', panelProvider, {
+        webviewOptions: { retainContextWhenHidden: true }
+    }));
     const commands = [
         ['go-git-it.buildNewProject', cmdBuildNewProject],
         ['go-git-it.openDifferentProject', cmdOpenDifferentProject],
