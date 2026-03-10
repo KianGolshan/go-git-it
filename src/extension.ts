@@ -26,6 +26,7 @@ let statusBarItem: vscode.StatusBarItem
 let gitWatcher: vscode.FileSystemWatcher | undefined
 let debounceTimer: ReturnType<typeof setTimeout> | undefined
 let pollInterval: ReturnType<typeof setInterval> | undefined
+let gitMissingNotified = false
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -43,8 +44,18 @@ async function refreshState(): Promise<void> {
 
   const gitOk = await isGitAvailable()
   if (!gitOk) {
-    panelProvider.update(null, false)
+    panelProvider.update(null, false, true)
     statusBarItem.hide()
+    if (!gitMissingNotified) {
+      gitMissingNotified = true
+      const BTN = 'Download Git'
+      vscode.window.showWarningMessage(
+        'Go Git It needs Git to work. Git is free and takes about a minute to install.',
+        BTN
+      ).then(choice => {
+        if (choice === BTN) vscode.commands.executeCommand('go-git-it.downloadGit')
+      })
+    }
     return
   }
 
@@ -131,6 +142,7 @@ export function activate(context: vscode.ExtensionContext): void {
     ['go-git-it.connectToGitHub',      cmdConnectToGitHub],
     ['go-git-it.snapshotThenPull',     cmdSnapshotThenPull],
     ['go-git-it.abortMerge',           cmdAbortMerge],
+    ['go-git-it.downloadGit',          cmdDownloadGit],
   ]
   for (const [id, handler] of commands) {
     ctx.subscriptions.push(vscode.commands.registerCommand(id, handler))
@@ -310,6 +322,10 @@ async function cmdAbortMerge(): Promise<void> {
   const result = await withFriendlyProgress('Undoing the merge...', () => abortMerge(cwd))
   handleResult(result)
   await refreshState()
+}
+
+async function cmdDownloadGit(): Promise<void> {
+  await vscode.env.openExternal(vscode.Uri.parse('https://git-scm.com/downloads'))
 }
 
 async function cmdOpenDifferentProject(): Promise<void> {

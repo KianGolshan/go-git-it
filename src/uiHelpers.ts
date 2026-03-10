@@ -18,27 +18,10 @@ export async function withFriendlyProgress<T>(
 }
 
 /**
- * Show a friendly success message that auto-dismisses after 4 seconds.
+ * Show a friendly success message.
  */
 export function showSuccess(message: string): void {
   vscode.window.showInformationMessage(message)
-}
-
-/**
- * Show an input box with a consistent style.
- */
-export async function promptInput(options: {
-  title: string
-  prompt: string
-  placeholder?: string
-  validate?: (val: string) => string | undefined
-}): Promise<string | undefined> {
-  return vscode.window.showInputBox({
-    title: options.title,
-    prompt: options.prompt,
-    placeHolder: options.placeholder,
-    validateInput: options.validate,
-  })
 }
 
 /**

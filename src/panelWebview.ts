@@ -29,7 +29,7 @@ function getNonce(): string {
   return Array.from({ length: 32 }, () => c[Math.floor(Math.random() * c.length)]).join('')
 }
 
-function buildHtml(state: GitState | null, hasError: boolean, nonce: string): string {
+function buildHtml(state: GitState | null, hasError: boolean, gitMissing: boolean, nonce: string): string {
   // ── Status values ──────────────────────────────────────────────────────────
   const projectName = state ? '' : 'No project open'
   const isExperiment = state?.currentBranch.startsWith('experiment/') ?? false
@@ -408,7 +408,19 @@ html, body {
   <!-- Body -->
   <div class="body">
 
-    ${!state ? `
+    ${gitMissing ? `
+      <div class="no-repo-msg">
+        <strong>Git needs to be installed</strong><br><br>
+        Go Git It needs Git to work. Git is a free tool that runs quietly in the background — you never have to use it directly.
+      </div>
+      <div class="section-label">NEXT STEP</div>
+      <button class="btn-action" data-cmd="downloadGit" style="grid-column:1/-1;flex-direction:row;justify-content:flex-start;padding:10px 12px">
+        <span class="btn-icon">📥</span><span class="btn-label" style="text-align:left">Download Git (free)</span>
+      </button>
+      <button class="btn-secondary" data-cmd="refresh">
+        <span class="icon">↻</span> I've installed it — refresh
+      </button>
+    ` : !state ? `
       <p class="no-repo-msg">No git project found in this folder.</p>
       <div class="section-label">GET STARTED</div>
       <button class="btn-action" data-cmd="buildNewProject" style="grid-column:1/-1;flex-direction:row;justify-content:flex-start;padding:10px 12px">
@@ -507,6 +519,7 @@ export class PanelWebviewProvider implements vscode.WebviewViewProvider {
   private _view?: vscode.WebviewView
   private _state: GitState | null = null
   private _hasError = false
+  private _gitMissing = false
 
   private _onCommand: (cmd: string) => void
   private _onCommitClick: (hash: string) => void
@@ -534,14 +547,15 @@ export class PanelWebviewProvider implements vscode.WebviewViewProvider {
     this._render()
   }
 
-  update(state: GitState | null, hasError: boolean): void {
+  update(state: GitState | null, hasError: boolean, gitMissing = false): void {
     this._state = state
     this._hasError = hasError
+    this._gitMissing = gitMissing
     if (this._view) this._render()
   }
 
   private _render(): void {
     if (!this._view) return
-    this._view.webview.html = buildHtml(this._state, this._hasError, getNonce())
+    this._view.webview.html = buildHtml(this._state, this._hasError, this._gitMissing, getNonce())
   }
 }

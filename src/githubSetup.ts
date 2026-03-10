@@ -64,24 +64,3 @@ export async function showGhCliMissingModal(): Promise<boolean> {
   return false
 }
 
-/**
- * Connect an existing local repo to a GitHub repo by setting the remote.
- */
-export async function connectExistingRepo(
-  cwd: string,
-  slug: string
-): Promise<GhResult> {
-  try {
-    // gh repo create with --source will add remote and push
-    const { stdout } = await execFileAsync(
-      'gh',
-      ['repo', 'create', slug, '--public', '--source=.', '--remote=origin', '--push'],
-      { cwd }
-    )
-    const urlMatch = stdout.match(/https:\/\/github\.com\/\S+/)
-    return { ok: true, url: urlMatch ? urlMatch[0] : undefined }
-  } catch (err: unknown) {
-    const e = err as { stderr?: string; message?: string }
-    return { ok: false, error: e.stderr ?? e.message ?? 'Unknown error' }
-  }
-}

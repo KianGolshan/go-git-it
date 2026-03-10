@@ -55,13 +55,15 @@ const ERROR_SPECS: Record<ErrorCode, ErrorSpec> = {
       "You're already up to date! Keep working and take a snapshot when you've made some changes.",
   },
   NO_GIT: {
-    emoji: '📁',
-    header: 'This folder isn\'t a project yet',
+    emoji: '📥',
+    header: 'Git needs to be installed',
     whatWeTried: 'Access your project history',
-    whatHappened: "This folder doesn't have any version history set up yet.",
-    whatToDoNext: 'Build a new project to get started with snapshots and backups.',
-    actionLabel: '🏗️ Build a new project',
-    actionCommand: 'go-git-it.buildNewProject',
+    whatHappened:
+      "Go Git It needs Git to work, but Git isn't installed on this computer. Git is a free tool that runs in the background — you never have to use it directly.",
+    whatToDoNext:
+      'Download and install Git (it\'s free and takes about a minute). Once it\'s installed, click "I\'ve installed it" in the sidebar to continue.',
+    actionLabel: '📥 Download Git (free)',
+    actionCommand: 'go-git-it.downloadGit',
   },
   UNKNOWN: {
     emoji: '😅',
