@@ -1,95 +1,122 @@
 # Go Git It
 
-> Version control for vibe-coders — no Git jargon, just friendly snapshots.
+**Version control for people who just want to build things.**
 
-Go Git It is a VS Code extension that wraps Git in plain English. No terminal, no commands, no confusing vocabulary. Just a friendly sidebar that keeps your work safe.
+Go Git It wraps Git in plain English — no terminal, no jargon, no learning curve. A friendly sidebar panel keeps your work safe with snapshots, GitHub backups, and risk-free experiments.
 
 ---
 
-## What it does
+## Why Go Git It?
 
-| You want to… | Go Git It calls it… | Under the hood |
-|---|---|---|
-| Save your progress | **Take a snapshot** | `git add -A && git commit` |
-| Back up online | **Send to GitHub** | `git push` |
-| Get someone else's changes | **Get latest** | `git fetch && git pull` |
-| Try something risky | **Start an experiment** | `git checkout -b experiment/…` |
-| Keep the experiment | **Merge experiment** | `git merge --no-ff` |
-| Scrap the experiment | **Abandon experiment** | `git branch -D` |
-| Undo to a past moment | **Go back to snapshot** | `git checkout <hash>` |
+Most developers take version control for granted. Everyone else either skips it entirely (and loses work), or spends hours learning Git commands that feel like a foreign language.
+
+Go Git It fixes that. It's Git — but every action has a name you actually understand.
+
+| You want to… | Go Git It calls it… |
+|---|---|
+| Save your progress | **Take a snapshot** |
+| Back up online | **Send to GitHub** |
+| Get someone else's changes | **Get latest** |
+| Try something risky | **Start an experiment** |
+| Keep the experiment | **Finish experiment** |
+| Scrap the experiment | **Abandon experiment** |
+| Undo to a past moment | **Go back to this snapshot** |
 
 ---
 
 ## Installation
 
+### From the VS Code Marketplace *(coming soon)*
+Search **"Go Git It"** in the VS Code Extensions panel and click **Install**.
+
 ### From VSIX (current)
-1. Download `go-git-it-0.2.0.vsix` from this repo
-2. In VS Code: `Extensions` → `···` menu → `Install from VSIX…`
-3. Select the file — done
-
-### From Marketplace *(coming soon)*
-Search **"Go Git It"** in the VS Code Extensions panel.
+1. Download `go-git-it-0.2.0.vsix` from the [Releases](../../releases) page
+2. In VS Code: open the Extensions panel → click the `···` menu → **Install from VSIX…**
+3. Select the downloaded file — done
 
 ---
 
-## Getting started
+## Requirements
 
-1. Open any project folder in VS Code
-2. Click the **⎇** icon in the Activity Bar (left sidebar)
-3. The Go Git It panel opens — all actions are right there
+- **VS Code** 1.85 or newer
+- **Git** — free, must be installed ([download here](https://git-scm.com/downloads))
+- **GitHub CLI** *(optional)* — needed only for automatic GitHub repo creation ([download here](https://cli.github.com))
 
-**First time with a brand new project?**
-Click **🏗️ Build a new project** — the wizard creates a folder, sets up Git, writes a README, and optionally connects to GitHub in under a minute.
+> Don't have Git? Go Git It detects this on startup and walks you through installing it.
 
 ---
 
-## The sidebar panel
+## Getting Started
+
+1. Open any folder in VS Code
+2. Click the **⎇** branch icon in the Activity Bar (left sidebar)
+3. The Go Git It panel opens — everything is right there
+
+**Starting a brand new project?**
+Click **🏗️ Build a new project** — the wizard creates your folder, sets up version control, writes a README, and optionally connects to GitHub in under a minute.
+
+---
+
+## The Sidebar Panel
 
 ```
-┌─────────────────────────┐
-│ GO GIT IT  🌿 Main line │  ← current branch
-├─────────────────────────┤
-│ ✅ Everything saved     │  ← live status
-├─────────────────────────┤
-│  YOUR WORK              │
-│ ┌──────────┬──────────┐ │
-│ │ 📸       │ ☁️        │ │
-│ │ Snapshot │ GitHub   │ │
-│ ├──────────┼──────────┤ │
-│ │ ⬇️        │ 🧪       │ │
-│ │ Get Latest│Experiment│ │
-│ └──────────┴──────────┘ │
-│                         │
-│  PROJECTS               │
-│  🏗️ Build new project   │
-│  📂 Open different...   │
-│  📖 How does this work? │
-├─────────────────────────┤
-│  TIMELINE · 3 snapshots │
-│  ● Snapshot: 2h ago     │
-│  ● Started project      │
-└─────────────────────────┘
+┌─────────────────────────────┐
+│  GO GIT IT    🌿 Main line  │  ← current branch
+├─────────────────────────────┤
+│  ✅ Everything saved         │  ← live status
+├─────────────────────────────┤
+│  YOUR WORK                  │
+│  ┌───────────┬───────────┐  │
+│  │    📸     │    ☁️      │  │
+│  │ Snapshot  │  GitHub   │  │
+│  ├───────────┼───────────┤  │
+│  │    ⬇️     │    🧪     │  │
+│  │ Get Latest│ Experiment│  │
+│  └───────────┴───────────┘  │
+│                             │
+│  PROJECTS                   │
+│  🏗️ Build a new project     │
+│  📂 Open a different project│
+│  📖 How does this work?     │
+├─────────────────────────────┤
+│  TIMELINE · 3 snapshots     │
+│  ● Added the hero section   │
+│  ● Fixed nav links          │
+│  ● 🎉 Started My Portfolio  │
+└─────────────────────────────┘
 ```
 
-### Status line
+### Status indicators
 
 | Status | Meaning |
 |---|---|
-| ✅ Everything saved & backed up | All work committed and pushed |
+| ✅ Everything saved & backed up | All work committed and pushed to GitHub |
 | 🔵 Saved here, not on GitHub yet | Committed locally, not pushed |
-| 🟡 You have unsaved changes | Working tree is dirty |
-| ⚠️ Not connected to GitHub | No remote configured |
+| 🟡 You have unsaved changes | Files changed since last snapshot |
+| ⚠️ Not connected to GitHub | No remote configured yet |
 
 ### Timeline dots
 
 | Color | Meaning |
 |---|---|
-| 🟢 Green | Committed + pushed to GitHub |
+| 🟢 Green | Committed and backed up to GitHub |
 | 🔵 Blue | Committed, not on GitHub yet |
 | 🟡 Pulsing yellow | Unsaved changes right now |
-| 🔵 Teal | Experiment branch commits |
+| 🔵 Teal | Commits on an experiment branch |
 
-Click any dot in the timeline to **see what changed** or **go back** to that moment.
+Click any dot to **see what changed** at that point, or **go back** to that exact moment.
+
+---
+
+## Snapshots
+
+A snapshot saves your project at this exact moment — like a save point in a video game.
+
+- Take one whenever something is working
+- Add an optional note like "Added the contact form"
+- They stack up in the timeline so you can always go back
+
+The timeline updates automatically whenever you save, commit from the terminal, switch branches, or pull from GitHub.
 
 ---
 
@@ -98,52 +125,52 @@ Click any dot in the timeline to **see what changed** or **go back** to that mom
 Experiments let you try risky ideas without touching your main work.
 
 ```
-Start experiment  →  work freely  →  Merge (keep it) or Abandon (delete it)
+Start experiment → work freely → Finish (keep it) or Abandon (delete it)
 ```
 
-- While on an experiment, two extra buttons appear: **✅ Merge** and **🗑️ Abandon**
-- Merging adds all experiment changes into your main line
-- Abandoning deletes the branch — your main work is completely untouched
+- While on an experiment, **Finish** and **Abandon** buttons appear in the panel
+- **Finish** merges all experiment changes into your main line
+- **Abandon** deletes the branch entirely — your main work is completely untouched
+- You can take snapshots inside an experiment just like normal
 
 ---
 
-## Error messages
+## Error Explanations
 
-When something goes wrong, Go Git It explains it in plain English — never raw Git output. Click **❓ What went wrong?** in the sidebar for a full explanation and a one-click fix.
+When something goes wrong, Go Git It never shows raw Git output. Every error has a plain-English explanation and a one-click fix.
 
-| Error | Plain English | Fix |
+| Situation | Plain English | Fix |
 |---|---|---|
-| `DIRTY_PULL` | You have unsaved changes that could get overwritten | Snapshot first, then get latest |
-| `MERGE_CONFLICT` | Two changes touched the same spot | Undo the merge and try again |
-| `NO_UPSTREAM` | Project isn't connected to GitHub | Connect to GitHub (one-time setup) |
-| `NOTHING_TO_COMMIT` | Nothing has changed since last snapshot | Keep working, snapshot later |
-
----
-
-## Requirements
-
-- **VS Code** ≥ 1.85
-- **Git** ≥ 2.0 (must be on PATH — [download](https://git-scm.com))
-- **GitHub CLI** *(optional)* — needed for auto repo creation ([download](https://cli.github.com))
+| Unsaved changes before getting latest | Your edits could get overwritten | Snapshot first, then get latest |
+| Merge conflict | Two changes touched the same spot | Undo the merge and try again |
+| Not connected to GitHub | Project isn't linked to a repo yet | Connect to GitHub (one-time setup) |
+| Nothing changed since last snapshot | Nothing new to save | Keep working, snapshot later |
+| Git not installed | Git isn't on this computer | Download Git (link provided) |
 
 ---
 
 ## FAQ
 
 **Do I need a GitHub account?**
-No. All snapshot/experiment features work completely offline. GitHub is only needed for "Send to GitHub."
+No. Snapshot and experiment features work completely offline. GitHub is only needed for "Send to GitHub."
+
+**Do I need to know Git?**
+No. Go Git It is designed specifically for people who don't know (or don't want to know) Git.
 
 **What if I already have a Git repo?**
-Just open the folder in VS Code — Go Git It detects the `.git` directory and activates automatically.
+Just open the folder in VS Code — Go Git It detects it automatically and shows your existing commit history in the timeline.
 
 **Can I still use the terminal alongside this?**
-Yes. The timeline refreshes automatically when you commit, switch branches, or pull from the terminal.
+Yes. The timeline refreshes automatically when you run Git commands in the terminal.
 
-**What is an "experiment" technically?**
-A Git branch named `experiment/<your-name>`. You can see it with `git branch` if you're curious.
+**What is an "experiment" under the hood?**
+A Git branch named `experiment/<your-name>`. If you're curious, you can see it with `git branch` in the terminal.
+
+**What if Git isn't installed?**
+Go Git It detects this on startup, shows a clear message, and gives you a direct link to download Git.
 
 ---
 
-## Feedback & issues
+## Feedback & Issues
 
-Found a bug or have an idea? [Open an issue](https://github.com/kiangolshan/Go-Git-It/issues).
+Found a bug or have an idea? [Open an issue on GitHub](../../issues) — all feedback is welcome.

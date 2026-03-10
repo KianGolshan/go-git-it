@@ -10,6 +10,9 @@ out/
 # Claude Code local config
 .claude/
 
+# Personal reference guides (not part of the package)
+PUBLISHING_GUIDE.html
+
 # OS
 .DS_Store
 Thumbs.db
