@@ -8,7 +8,7 @@
   "repository": { "type": "git", "url": "https://github.com/kiangolshan/Go-Git-It.git" },
   "homepage": "https://github.com/kiangolshan/Go-Git-It",
   "bugs": { "url": "https://github.com/kiangolshan/Go-Git-It/issues" },
-  "keywords": ["git", "version control", "beginner", "snapshots", "github", "vibe coding", "source control"],
+  "keywords": ["git", "github", "version-control", "beginner", "vibe-coding", "ai-tools", "source-control", "workflow", "productivity", "no-terminal"],
   "icon": "icon.png",
   "galleryBanner": { "color": "#0f172a", "theme": "dark" },
   "engines": { "vscode": "^1.85.0" },
