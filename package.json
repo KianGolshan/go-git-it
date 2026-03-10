@@ -2,7 +2,7 @@
   "name": "go-git-it",
   "displayName": "Go Git It",
   "description": "Version control for vibe-coders — no Git jargon, just friendly snapshots.",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "publisher": "kiangolshan",
   "license": "MIT",
   "repository": { "type": "git", "url": "https://github.com/kiangolshan/Go-Git-It.git" },

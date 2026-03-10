@@ -26,13 +26,13 @@ Go Git It fixes that. It's Git — but every action has a name you actually unde
 
 ## Installation
 
-### From the VS Code Marketplace *(coming soon)*
-Search **"Go Git It"** in the VS Code Extensions panel and click **Install**.
+### From the VS Code Marketplace
+1. Open VS Code
+2. Click the **Extensions** icon in the left sidebar (or press `Cmd+Shift+X` / `Ctrl+Shift+X`)
+3. Search **"Go Git It"**
+4. Click **Install**
 
-### From VSIX (current)
-1. Download `go-git-it-0.2.0.vsix` from the [Releases](../../releases) page
-2. In VS Code: open the Extensions panel → click the `···` menu → **Install from VSIX…**
-3. Select the downloaded file — done
+Or install directly: [Go Git It on the VS Code Marketplace](https://marketplace.visualstudio.com/items?itemName=kiangolshan.go-git-it)
 
 ---
 

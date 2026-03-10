@@ -5,6 +5,13 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [0.2.1] — 2026-03-09
+
+### Changed
+- README installation section updated with live marketplace link and search instructions
+
+---
+
 ## [0.2.0] — 2026-03-09
 
 ### Added
