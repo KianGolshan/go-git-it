@@ -4,6 +4,12 @@
   "description": "Version control for vibe-coders — no Git jargon, just friendly snapshots.",
   "version": "0.2.0",
   "publisher": "kiangolshan",
+  "license": "MIT",
+  "repository": { "type": "git", "url": "https://github.com/kiangolshan/Go-Git-It.git" },
+  "homepage": "https://github.com/kiangolshan/Go-Git-It",
+  "bugs": { "url": "https://github.com/kiangolshan/Go-Git-It/issues" },
+  "keywords": ["git", "version control", "beginner", "snapshots", "github", "vibe coding", "source control"],
+  "galleryBanner": { "color": "#0f172a", "theme": "dark" },
   "engines": { "vscode": "^1.85.0" },
   "categories": ["SCM Providers", "Other"],
   "activationEvents": [

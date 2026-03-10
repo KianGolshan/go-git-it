@@ -1,0 +1,16 @@
+# Source files — compiled output in out/ is what runs
+src/
+
+# Dev & config files
+tsconfig.json
+.vscode/
+.claude/
+.gitignore
+
+# Docs & internal files
+docs/
+GO_GIT_IT_OVERVIEW.html
+PUBLISHING_GUIDE.html
+
+# Misc
+*.vsix

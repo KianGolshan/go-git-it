@@ -5,7 +5,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
-## [Unreleased]
+## [0.2.0] — 2026-03-09
 
 ### Added
 - **Git not installed detection** — on startup, Go Git It checks whether Git is available. If not, the sidebar shows a clear "Git needs to be installed" message with a **Download Git** button that opens the official download page. A one-time notification also appears so the message isn't repeated on every refresh.
