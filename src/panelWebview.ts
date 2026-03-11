@@ -453,6 +453,11 @@ html, body {
         </div>
       </div>
 
+      ${!state.hasUpstream ? `
+      <button class="btn-secondary" data-cmd="connectToGitHub" style="background:var(--vscode-button-background);color:var(--vscode-button-foreground);border-radius:5px;padding:8px 12px;font-weight:600;">
+        <span class="icon">☁️</span> Connect to GitHub
+      </button>` : ''}
+
       ${experimentSection}
 
       ${errorBtn}
