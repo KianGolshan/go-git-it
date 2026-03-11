@@ -5,6 +5,13 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [0.2.2] — 2026-03-10
+
+### Added
+- **Connect to GitHub button** — when a project has no GitHub remote, a "Connect to GitHub" button now appears in the sidebar so users can connect without leaving the extension.
+
+---
+
 ## [0.2.1] — 2026-03-09
 
 ### Changed
