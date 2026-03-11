@@ -51,11 +51,26 @@ export async function checkGhCli(): Promise<GhCliStatus> {
 /**
  * Create a public GitHub repo from the given local path and push all local commits.
  * Assumes `git init` and at least one commit already exist.
+ * Returns a specific alreadyConnected flag if the repo already has a remote named origin.
  */
 export async function createGithubRepo(
   cwd: string,
   slug: string
-): Promise<GhResult> {
+): Promise<GhResult & { alreadyConnected?: boolean }> {
+  // If the project already has an 'origin' remote, don't try to create a new repo —
+  // gh repo create would fail with a confusing error.
+  try {
+    const { execFile: execFileCb } = await import('child_process')
+    const { promisify: p } = await import('util')
+    const exec = p(execFileCb)
+    const { stdout: remotes } = await exec('git', ['remote'], { cwd })
+    if (remotes.trim().split('\n').some(r => r.trim() === 'origin')) {
+      return { ok: false, alreadyConnected: true, error: 'This project is already connected to a remote repository.' }
+    }
+  } catch {
+    // git not available or no repo — let the gh call fail naturally
+  }
+
   try {
     const gh = await findGhBinary() ?? 'gh'
     const { stdout } = await execFileAsync(
@@ -66,8 +81,13 @@ export async function createGithubRepo(
     const urlMatch = stdout.match(/https:\/\/github\.com\/\S+/)
     return { ok: true, url: urlMatch ? urlMatch[0] : undefined }
   } catch (err: unknown) {
-    const e = err as { stderr?: string; message?: string }
-    return { ok: false, error: e.stderr ?? e.message ?? 'Unknown error' }
+    const e = err as { stderr?: string; stdout?: string; message?: string }
+    const raw = e.stderr ?? e.message ?? 'Unknown error'
+    // Detect name collision on GitHub
+    if (raw.toLowerCase().includes('already exists') || raw.toLowerCase().includes('name already taken')) {
+      return { ok: false, error: `A GitHub repo named "${slug}" already exists. Try a different name.` }
+    }
+    return { ok: false, error: raw }
   }
 }
 

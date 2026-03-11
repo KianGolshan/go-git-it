@@ -1,38 +1,14 @@
 import * as vscode from 'vscode'
 import { GitState } from './gitRunner'
+import { escapeHtml, relativeDate, truncate, getNonce } from './utils'
 
-function escapeHtml(s: string): string {
-  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
-}
-
-function relativeDate(iso: string): string {
-  const d = new Date(iso)
-  if (isNaN(d.getTime())) return ''
-  const diff = Date.now() - d.getTime()
-  const m = Math.floor(diff / 60000)
-  const h = Math.floor(diff / 3600000)
-  const days = Math.floor(diff / 86400000)
-  if (m < 2) return 'just now'
-  if (h < 1) return `${m}m ago`
-  if (h < 24) return `${h}h ago`
-  if (days === 1) return 'yesterday'
-  if (days < 7) return `${days}d ago`
-  return d.toLocaleDateString()
-}
-
-function truncate(s: string, n = 34): string {
-  return s.length > n ? s.slice(0, n - 1) + '…' : s
-}
-
-function getNonce(): string {
-  const c = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789'
-  return Array.from({ length: 32 }, () => c[Math.floor(Math.random() * c.length)]).join('')
-}
+// Re-export for any consumers that import these from panelWebview
+export { escapeHtml, relativeDate, truncate }
 
 function buildHtml(state: GitState | null, hasError: boolean, gitMissing: boolean, nonce: string): string {
   // ── Status values ──────────────────────────────────────────────────────────
-  const projectName = state ? '' : 'No project open'
   const isExperiment = state?.currentBranch.startsWith('experiment/') ?? false
+  const isDetachedHead = state?.isDetachedHead ?? false
   const experimentName = isExperiment ? state!.currentBranch.replace('experiment/', '') : ''
 
   let branchLabel = '—'
@@ -40,20 +16,26 @@ function buildHtml(state: GitState | null, hasError: boolean, gitMissing: boolea
   let statusClass = 'status-neutral'
 
   if (state) {
-    branchLabel = isExperiment ? `🧪 ${experimentName}` : '🌿 Main line'
-
-    if (!state.hasUpstream) {
-      statusText = '⚠️ Not connected to GitHub'
+    if (isDetachedHead) {
+      branchLabel = '🔍 Viewing past snapshot'
+      statusText = '⚠️ You are viewing a past snapshot'
       statusClass = 'status-warn'
-    } else if (state.isDirty) {
-      statusText = '🟡 You have unsaved changes'
-      statusClass = 'status-dirty'
-    } else if (state.commits.length > 0 && !state.commits[0].pushed) {
-      statusText = '🔵 Saved here, not on GitHub yet'
-      statusClass = 'status-local'
     } else {
-      statusText = '✅ Everything saved & backed up'
-      statusClass = 'status-ok'
+      branchLabel = isExperiment ? `🧪 ${experimentName}` : '🌿 Main line'
+
+      if (!state.hasUpstream) {
+        statusText = '⚠️ Not connected to GitHub'
+        statusClass = 'status-warn'
+      } else if (state.isDirty) {
+        statusText = '🟡 You have unsaved changes'
+        statusClass = 'status-dirty'
+      } else if (state.commits.length > 0 && !state.commits[0].pushed) {
+        statusText = '🔵 Saved here, not on GitHub yet'
+        statusClass = 'status-local'
+      } else {
+        statusText = '✅ Everything saved & backed up'
+        statusClass = 'status-ok'
+      }
     }
   }
 
@@ -85,6 +67,23 @@ function buildHtml(state: GitState | null, hasError: boolean, gitMissing: boolea
   const errorBtn = hasError
     ? `<button class="btn-error" data-cmd="explainError">❓ What went wrong?</button>`
     : ''
+
+  // ── Detached HEAD recovery UI ──────────────────────────────────────────────
+  const detachedHeadBody = isDetachedHead ? `
+    <div class="no-repo-msg">
+      <strong>You're viewing a past snapshot</strong><br><br>
+      Your project is showing you how it looked at this point in time. Your main work is untouched — click below to go back.
+    </div>
+    <div class="section-label">RETURN</div>
+    <button class="btn-action" data-cmd="returnToMain" style="grid-column:1/-1;flex-direction:row;justify-content:flex-start;padding:10px 12px">
+      <span class="btn-icon">🌿</span><span class="btn-label" style="text-align:left">Return to main line</span>
+    </button>
+    <div class="divider"></div>
+    <div>
+      <div class="section-label">TIMELINE · ${state?.commits.length ?? 0} snapshot${(state?.commits.length ?? 0) !== 1 ? 's' : ''}</div>
+      <div class="timeline-wrap">${timelineHtml}</div>
+    </div>
+  ` : ''
 
   return `<!DOCTYPE html><html lang="en"><head>
 <meta charset="UTF-8">
@@ -432,7 +431,7 @@ html, body {
       <button class="btn-secondary" data-cmd="openDifferentProject">
         <span class="icon">📂</span> Open a different project
       </button>
-    ` : `
+    ` : isDetachedHead ? detachedHeadBody : `
       <!-- Primary actions -->
       <div>
         <div class="section-label">YOUR WORK</div>

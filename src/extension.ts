@@ -7,7 +7,7 @@ import {
   takeSnapshot, pushToRemote, pullLatest,
   createExperiment, mergeExperiment, abandonExperiment,
   getState, initProject, initExistingProject, abortMerge,
-  isGitAvailable,
+  returnToDefaultBranch, isGitAvailable,
   GitResult, GitState,
 } from './gitRunner'
 import { checkGhCli, createGithubRepo, showGhNotInstalledModal, showGhNotAuthenticatedModal } from './githubSetup'
@@ -25,6 +25,7 @@ let panelProvider: PanelWebviewProvider
 let statusBarItem: vscode.StatusBarItem
 let gitWatcher: vscode.FileSystemWatcher | undefined
 let debounceTimer: ReturnType<typeof setTimeout> | undefined
+let watcherDebounceTimer: ReturnType<typeof setTimeout> | undefined
 let pollInterval: ReturnType<typeof setInterval> | undefined
 let gitMissingNotified = false
 
@@ -95,13 +96,23 @@ function debouncedRefresh(): void {
   debounceTimer = setTimeout(() => refreshState(), 800)
 }
 
+/**
+ * Debounced refresh for file watcher events.
+ * Uses a separate timer so rapid git operations (Claude Code, terminal rebases,
+ * cherry-picks) don't spawn dozens of concurrent refreshState() calls.
+ */
+function debouncedWatcherRefresh(): void {
+  if (watcherDebounceTimer) clearTimeout(watcherDebounceTimer)
+  watcherDebounceTimer = setTimeout(() => refreshState(), 400)
+}
+
 function watchGitDir(cwd: string): void {
   gitWatcher?.dispose()
   // Catch branch switches, commits, and staging from terminal
   const pattern = new vscode.RelativePattern(cwd, '.git/{HEAD,index,COMMIT_EDITMSG,MERGE_HEAD}')
   gitWatcher = vscode.workspace.createFileSystemWatcher(pattern, false, false, true)
-  gitWatcher.onDidChange(() => refreshState())
-  gitWatcher.onDidCreate(() => refreshState())
+  gitWatcher.onDidChange(() => debouncedWatcherRefresh())
+  gitWatcher.onDidCreate(() => debouncedWatcherRefresh())
   ctx.subscriptions.push(gitWatcher)
 }
 
@@ -144,6 +155,7 @@ export function activate(context: vscode.ExtensionContext): void {
     ['go-git-it.snapshotThenPull',     cmdSnapshotThenPull],
     ['go-git-it.abortMerge',           cmdAbortMerge],
     ['go-git-it.downloadGit',          cmdDownloadGit],
+    ['go-git-it.returnToMain',         cmdReturnToMain],
   ]
   for (const [id, handler] of commands) {
     ctx.subscriptions.push(vscode.commands.registerCommand(id, handler))
@@ -181,6 +193,7 @@ export function activate(context: vscode.ExtensionContext): void {
 export function deactivate(): void {
   gitWatcher?.dispose()
   if (debounceTimer) clearTimeout(debounceTimer)
+  if (watcherDebounceTimer) clearTimeout(watcherDebounceTimer)
   if (pollInterval) clearInterval(pollInterval)
 }
 
@@ -257,6 +270,25 @@ async function cmdAbandonExperiment(): Promise<void> {
   if (!cwd || !currentState?.currentBranch.startsWith('experiment/')) {
     vscode.window.showWarningMessage("You're not on an experiment right now."); return
   }
+
+  // Warn about unsaved changes before showing the destructive confirm
+  if (currentState.isDirty) {
+    const dirtyChoice = await vscode.window.showWarningMessage(
+      'You have unsaved changes in this experiment',
+      {
+        modal: true,
+        detail: 'Take a snapshot to save them before abandoning, or discard them permanently.',
+      },
+      '📸 Take snapshot first',
+      'Discard and abandon anyway'
+    )
+    if (!dirtyChoice || dirtyChoice === '📸 Take snapshot first') {
+      if (dirtyChoice) await cmdTakeSnapshot()
+      return
+    }
+    // Fall through to the main confirm with "discard anyway" context
+  }
+
   const confirm = await vscode.window.showWarningMessage(
     'Abandon this experiment?',
     { modal: true, detail: 'This permanently deletes the experiment. Your main line is untouched.' },
@@ -302,8 +334,21 @@ async function cmdConnectToGitHub(): Promise<void> {
 
   await withFriendlyProgress('Connecting to GitHub...', async () => {
     const result = await createGithubRepo(cwd, slug)
-    if (result.ok) showSuccess('Connected! Your project is now on GitHub.')
-    else vscode.window.showErrorMessage(`Couldn't connect to GitHub: ${result.error}`)
+    if (result.ok) {
+      showSuccess('Connected! Your project is now on GitHub.')
+    } else if (result.alreadyConnected) {
+      // Surface as a friendly error so the explainer shows the right guidance
+      lastError = { ok: false, message: 'This project is already connected to a remote repository.', code: 'ALREADY_CONNECTED' }
+      panelProvider.update(currentState ?? null, true)
+      vscode.window.showWarningMessage(
+        'This project already has a GitHub remote.',
+        "What's going on?"
+      ).then(choice => {
+        if (choice === "What's going on?") vscode.commands.executeCommand('go-git-it.explainError')
+      })
+    } else {
+      vscode.window.showErrorMessage(`Couldn't connect to GitHub: ${result.error ?? 'Unknown error'}`)
+    }
   })
   await refreshState()
 }
@@ -332,6 +377,15 @@ async function cmdDownloadGit(): Promise<void> {
 
 async function cmdOpenDifferentProject(): Promise<void> {
   await showRepoSwitcher()
+}
+
+async function cmdReturnToMain(): Promise<void> {
+  const cwd = getCwd()
+  if (!cwd) return
+  const defaultBranch = currentState?.defaultBranch ?? 'main'
+  const result = await withFriendlyProgress('Returning to your main line...', () => returnToDefaultBranch(cwd, defaultBranch))
+  handleResult(result)
+  await refreshState()
 }
 
 // ── Build New Project wizard ──────────────────────────────────────────────────
@@ -407,7 +461,16 @@ async function cmdBuildNewProject(): Promise<void> {
 
     progress.report({ message: 'Setting up your project...' })
     const initResult = await initProject(projectPath, projectName)
-    if (!initResult.ok) { vscode.window.showErrorMessage(initResult.message); return }
+    if (!initResult.ok) {
+      if (initResult.code === 'NO_IDENTITY') {
+        // Project created but can't commit — guide user, still open the folder
+        vscode.window.showWarningMessage(initResult.message)
+        success = true
+        return
+      }
+      vscode.window.showErrorMessage(initResult.message)
+      return
+    }
 
     if (connectGitHub) {
       progress.report({ message: 'Connecting to GitHub...' })
@@ -421,7 +484,7 @@ async function cmdBuildNewProject(): Promise<void> {
       } else {
         const ghResult = await createGithubRepo(projectPath, slug)
         if (ghResult.ok) showSuccess('✅ Your project is live on GitHub!')
-        else vscode.window.showWarningMessage(`Project created, but couldn't connect to GitHub: ${ghResult.error}`)
+        else vscode.window.showWarningMessage(`Project created, but couldn't connect to GitHub: ${ghResult.error ?? 'Unknown error'}`)
       }
     }
 
@@ -455,8 +518,13 @@ async function cmdInitCurrentFolder(): Promise<void> {
 
   const initResult = await withFriendlyProgress('Setting up version control…', () => initExistingProject(cwd))
   if (!initResult.ok) {
-    vscode.window.showErrorMessage(initResult.message)
-    return
+    if (initResult.code === 'NO_IDENTITY') {
+      vscode.window.showWarningMessage(initResult.message)
+      // Don't block — folder is now tracked, just needs identity set
+    } else {
+      vscode.window.showErrorMessage(initResult.message)
+      return
+    }
   }
 
   watchGitDir(cwd)
@@ -511,7 +579,7 @@ async function handleCommitClick(hash: string): Promise<void> {
         modal: true,
         detail: isDirty
           ? 'You have unsaved changes. Take a snapshot first to keep them.'
-          : 'Your project will look exactly as it did at this moment.',
+          : 'Your project will look exactly as it did at this moment. Use "Return to main line" in the panel to come back.',
       },
       ...choices
     )

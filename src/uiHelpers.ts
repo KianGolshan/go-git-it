@@ -24,12 +24,4 @@ export function showSuccess(message: string): void {
   vscode.window.showInformationMessage(message)
 }
 
-/**
- * Slugify a display name into a git/filesystem-safe identifier.
- */
-export function slugify(name: string): string {
-  return name
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-|-$/g, '')
-}
+export { slugify } from './utils'

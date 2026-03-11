@@ -70,6 +70,27 @@ const ERROR_SPECS: Record<ErrorCode, ErrorSpec> = {
     actionLabel: '📥 Download Git (free)',
     actionCommand: 'go-git-it.downloadGit',
   },
+  NO_IDENTITY: {
+    emoji: '👤',
+    header: 'Git needs to know who you are',
+    whatWeTried: 'Save your snapshot',
+    whatHappened:
+      'Git requires a name and email address the very first time you save a snapshot on this computer. This is a one-time setup.',
+    whatToDoNext:
+      'Open a terminal and run these two commands (replace with your real name and email):\n\n' +
+      '    git config --global user.name "Your Name"\n' +
+      '    git config --global user.email "you@example.com"\n\n' +
+      'Then try taking a snapshot again.',
+  },
+  ALREADY_CONNECTED: {
+    emoji: '🔗',
+    header: 'This project is already on GitHub',
+    whatWeTried: 'Connect to GitHub',
+    whatHappened:
+      'This project already has a remote repository connected — it looks like it\'s already on GitHub.',
+    whatToDoNext:
+      'Use "Send to GitHub" (the ☁️ button) to back up your work. You\'re already set up!',
+  },
   UNKNOWN: {
     emoji: '😅',
     header: 'Something unexpected happened',

@@ -13,6 +13,8 @@ export type ErrorCode =
   | 'NO_UPSTREAM'
   | 'NO_GIT'
   | 'NOTHING_TO_COMMIT'
+  | 'NO_IDENTITY'
+  | 'ALREADY_CONNECTED'
   | 'UNKNOWN'
 
 export interface GitResult {
@@ -38,6 +40,7 @@ export interface GitState {
   isDirty: boolean
   hasUpstream: boolean
   defaultBranch: string
+  isDetachedHead: boolean
   commits: CommitNode[]
   lastError?: GitResult
 }
@@ -66,11 +69,13 @@ async function git(
   }
 }
 
-function slugify(name: string): string {
-  return name
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-|-$/g, '')
+import { slugify } from './utils'
+export { slugify }
+
+/** Detect "Please tell me who you are" from git commit failure */
+function isNoIdentityError(stderr: string): boolean {
+  return stderr.toLowerCase().includes('please tell me who you are') ||
+    stderr.toLowerCase().includes('user.email') && stderr.toLowerCase().includes('config')
 }
 
 // ── Public API ────────────────────────────────────────────────────────────────
@@ -97,6 +102,14 @@ export async function takeSnapshot(cwd: string, summary?: string): Promise<GitRe
   const msg = summary ? summary : `Snapshot: ${now}`
   const commit = await git(['commit', '-m', msg], cwd)
   if (commit.failed) {
+    if (isNoIdentityError(commit.stderr)) {
+      return {
+        ok: false,
+        message: 'Git needs your name and email before saving your first snapshot.',
+        code: 'NO_IDENTITY',
+        rawError: commit.stderr,
+      }
+    }
     return { ok: false, message: 'Could not save the snapshot.', code: 'UNKNOWN', rawError: commit.stderr }
   }
 
@@ -142,6 +155,16 @@ export async function pullLatest(cwd: string): Promise<GitResult> {
   await git(['fetch'], cwd)
   const pull = await git(['pull'], cwd)
   if (pull.failed) {
+    const combined = (pull.stderr + pull.stdout).toLowerCase()
+    // Merge conflict during pull
+    if (combined.includes('conflict') || combined.includes('merge conflict')) {
+      return {
+        ok: false,
+        message: "Two changes touched the same spot — can't merge automatically. Your work is safe.",
+        code: 'MERGE_CONFLICT',
+        rawError: pull.stderr,
+      }
+    }
     return { ok: false, message: 'Could not get the latest version.', code: 'UNKNOWN', rawError: pull.stderr }
   }
 
@@ -154,6 +177,17 @@ export async function pullLatest(cwd: string): Promise<GitResult> {
 
 export async function createExperiment(cwd: string, name: string): Promise<GitResult> {
   const branchName = `experiment/${slugify(name)}`
+
+  // Check if the branch already exists
+  const existing = await git(['show-ref', '--verify', '--quiet', `refs/heads/${branchName}`], cwd)
+  if (!existing.failed) {
+    return {
+      ok: false,
+      message: `You already have an experiment called "${name}". Try a different name.`,
+      code: 'UNKNOWN',
+    }
+  }
+
   const result = await git(['checkout', '-b', branchName], cwd)
   if (result.failed) {
     return { ok: false, message: 'Could not start the experiment.', code: 'UNKNOWN', rawError: result.stderr }
@@ -177,9 +211,19 @@ export async function mergeExperiment(cwd: string, defaultBranch: string): Promi
     return { ok: false, message: 'Could not switch back to your main line.', code: 'UNKNOWN', rawError: checkout.stderr }
   }
 
-  const pull = await git(['pull'], cwd)
-  if (pull.failed && !pull.stderr.toLowerCase().includes('no upstream')) {
-    return { ok: false, message: 'Could not get latest before merging.', code: 'UNKNOWN', rawError: pull.stderr }
+  // Only pull if there's actually a remote configured — avoids confusing
+  // "no tracking information" errors on local-only repos.
+  const remoteCheck = await git(['remote'], cwd)
+  if (!remoteCheck.failed && remoteCheck.stdout.length > 0) {
+    const pull = await git(['pull'], cwd)
+    if (pull.failed) {
+      const s = pull.stderr.toLowerCase()
+      const isNoUpstream = s.includes('no upstream') || s.includes('no tracking') ||
+        s.includes('specify which branch') || s.includes('set-upstream')
+      if (!isNoUpstream) {
+        return { ok: false, message: 'Could not get latest before merging.', code: 'UNKNOWN', rawError: pull.stderr }
+      }
+    }
   }
 
   const merge = await git(['merge', experimentBranch, '--no-ff', '-m', `Merged experiment: ${experimentName}`], cwd)
@@ -196,6 +240,9 @@ export async function mergeExperiment(cwd: string, defaultBranch: string): Promi
     return { ok: false, message: 'Something went wrong during the merge.', code: 'UNKNOWN', rawError: merge.stderr }
   }
 
+  // Clean up: delete the experiment branch now that it's merged
+  await git(['branch', '-d', experimentBranch], cwd)
+
   return { ok: true, message: 'Experiment merged into your main line ✅' }
 }
 
@@ -205,6 +252,16 @@ export async function abandonExperiment(cwd: string, defaultBranch: string): Pro
     return { ok: false, message: "You don't seem to be on an experiment branch.", code: 'UNKNOWN' }
   }
   const experimentBranch = branchResult.stdout
+
+  // Refuse if there are uncommitted changes — git checkout would fail anyway and the error is confusing
+  const statusResult = await git(['status', '--porcelain'], cwd)
+  if (!statusResult.failed && statusResult.stdout.length > 0) {
+    return {
+      ok: false,
+      message: 'Take a snapshot first — you have unsaved changes on this experiment that would be lost.',
+      code: 'DIRTY_PULL',
+    }
+  }
 
   const checkout = await git(['checkout', defaultBranch], cwd)
   if (checkout.failed) {
@@ -226,8 +283,13 @@ export async function getState(cwd: string): Promise<GitState | null> {
   const branchResult = await git(['rev-parse', '--abbrev-ref', 'HEAD'], cwd)
   const currentBranch = branchResult.failed ? 'unknown' : branchResult.stdout
 
+  // Detached HEAD: git outputs the literal string "HEAD"
+  const isDetachedHead = currentBranch === 'HEAD'
+
   let displayBranch: string
-  if (currentBranch === 'main' || currentBranch === 'master') {
+  if (isDetachedHead) {
+    displayBranch = 'Viewing past snapshot'
+  } else if (currentBranch === 'main' || currentBranch === 'master') {
     displayBranch = 'Main line'
   } else if (currentBranch.startsWith('experiment/')) {
     displayBranch = `Experiment: ${currentBranch.replace('experiment/', '')}`
@@ -247,7 +309,6 @@ export async function getState(cwd: string): Promise<GitState | null> {
   if (!configResult.failed && configResult.stdout) {
     defaultBranch = configResult.stdout
   } else {
-    // Check if main or master exists
     const mainCheck = await git(['show-ref', '--verify', '--quiet', 'refs/heads/main'], cwd)
     const masterCheck = await git(['show-ref', '--verify', '--quiet', 'refs/heads/master'], cwd)
     if (!mainCheck.failed) defaultBranch = 'main'
@@ -294,7 +355,7 @@ export async function getState(cwd: string): Promise<GitState | null> {
     }
   }
 
-  return { currentBranch, displayBranch, isDirty, hasUpstream, defaultBranch, commits }
+  return { currentBranch, displayBranch, isDirty, hasUpstream, defaultBranch, isDetachedHead, commits }
 }
 
 export async function initProject(projectPath: string, name: string): Promise<GitResult> {
@@ -319,6 +380,14 @@ export async function initProject(projectPath: string, name: string): Promise<Gi
   await git(['add', '-A'], projectPath)
   const commit = await git(['commit', '-m', `🎉 Started ${name}`], projectPath)
   if (commit.failed) {
+    if (isNoIdentityError(commit.stderr)) {
+      return {
+        ok: false,
+        message: 'Project created! One more step: Git needs your name and email before you can take snapshots.',
+        code: 'NO_IDENTITY',
+        rawError: commit.stderr,
+      }
+    }
     return { ok: false, message: 'Files created, but could not save the first snapshot.', code: 'UNKNOWN', rawError: commit.stderr }
   }
 
@@ -342,6 +411,14 @@ export async function initExistingProject(projectPath: string): Promise<GitResul
   if (hasFiles) {
     const commit = await git(['commit', '-m', '🎉 Start tracking this project'], projectPath)
     if (commit.failed) {
+      if (isNoIdentityError(commit.stderr)) {
+        return {
+          ok: false,
+          message: 'Folder set up! One more step: Git needs your name and email before you can take snapshots.',
+          code: 'NO_IDENTITY',
+          rawError: commit.stderr,
+        }
+      }
       return { ok: false, message: 'Folder set up, but could not save the first snapshot.', code: 'UNKNOWN', rawError: commit.stderr }
     }
   }
@@ -355,6 +432,14 @@ export async function abortMerge(cwd: string): Promise<GitResult> {
     return { ok: false, message: 'Could not undo the merge.', code: 'UNKNOWN', rawError: result.stderr }
   }
   return { ok: true, message: 'Merge undone — your main work is back to normal.' }
+}
+
+export async function returnToDefaultBranch(cwd: string, defaultBranch: string): Promise<GitResult> {
+  const result = await git(['checkout', defaultBranch], cwd)
+  if (result.failed) {
+    return { ok: false, message: `Could not return to your main line.`, code: 'UNKNOWN', rawError: result.stderr }
+  }
+  return { ok: true, message: `Back on your main line.` }
 }
 
 /** Check if git is available on PATH */
