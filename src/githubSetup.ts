@@ -18,12 +18,12 @@ export type GhCliStatus = 'ok' | 'not_installed' | 'not_authenticated'
  */
 export async function checkGhCli(): Promise<GhCliStatus> {
   try {
-    await execFileAsync('gh', ['--version'])
+    await execFileAsync('gh', ['--version'], { shell: true })
   } catch {
     return 'not_installed'
   }
   try {
-    await execFileAsync('gh', ['auth', 'status'])
+    await execFileAsync('gh', ['auth', 'status'], { shell: true })
     return 'ok'
   } catch {
     return 'not_authenticated'
@@ -42,7 +42,7 @@ export async function createGithubRepo(
     const { stdout } = await execFileAsync(
       'gh',
       ['repo', 'create', slug, '--public', '--source=.', '--remote=origin', '--push'],
-      { cwd }
+      { cwd, shell: true }
     )
     const urlMatch = stdout.match(/https:\/\/github\.com\/\S+/)
     return { ok: true, url: urlMatch ? urlMatch[0] : undefined }
