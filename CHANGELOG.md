@@ -5,6 +5,24 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [0.3.0] — 2026-03-10
+
+### Added
+- **"Track this folder" button** — when a folder has no git repo, a new "Track this folder" button initializes git tracking on the current open folder without touching existing files, then offers to connect to GitHub immediately.
+- **New walkthrough step: "Setting up GitHub (one time)"** — a dedicated step in the onboarding walkthrough that guides users through creating a GitHub account, installing the GitHub CLI, and running `gh auth login`. Includes a troubleshooting section.
+
+### Fixed
+- **"Send to GitHub" hidden when not connected** — the primary action grid no longer shows "Send to GitHub" when the project has no GitHub remote. Instead it shows "Connect GitHub" in that slot, so clicking the button takes the right action.
+- **Precise GitHub CLI error messages** — "not installed" and "not authenticated" now show different, accurate modals. Previously both showed "we need a small free tool" which was misleading if the CLI was already installed but the user hadn't logged in.
+- **"Build a new project" GitHub step** — if the GitHub CLI is installed but not authenticated during project creation, the extension now shows the correct "log in" guidance instead of the install prompt.
+
+### Changed
+- **Walkthrough GitHub step** rewritten to cover both first-time connection and ongoing backup. Includes a full troubleshooting section (not installed, not authenticated, push failed, repo name taken).
+- **Demo walkthrough GitHub step** updated to reference the "Connect to GitHub" button before "Send to GitHub" for first-time users.
+- **Error explainer** for `NO_UPSTREAM` now gives step-by-step guidance covering both GitHub CLI setup paths.
+
+---
+
 ## [0.2.2] — 2026-03-10
 
 ### Added
