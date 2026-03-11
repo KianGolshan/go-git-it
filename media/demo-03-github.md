@@ -1,8 +1,20 @@
-## Step 3 — Send your work to GitHub
+## Step 3 — Connect and back up to GitHub
 
 ---
 
 Your snapshot is safe on your computer. Now send it to GitHub so it's backed up online.
+
+### First time? Connect your project first
+
+If you see "⚠️ Not connected to GitHub" in the status bar, click **Connect GitHub** in the action grid (or "Connect to GitHub" in the sidebar).
+
+Go Git It will ask for a name for your repo, then create it on GitHub and upload everything in one step.
+
+**Need to set up the GitHub CLI first?** See the "Setting up GitHub" step in the main walkthrough — it takes about 2 minutes.
+
+---
+
+### Already connected? Just send it
 
 Click **☁️ Send to GitHub** in the sidebar.
 
@@ -17,22 +29,6 @@ The status line updates to:
 > ✅ Everything saved & backed up
 
 The dots in your timeline turn **green** — green means the snapshot exists on GitHub.
-
----
-
-### What if it says "Not connected to GitHub"?
-
-Your project needs to be linked to a GitHub repo. Two ways to fix this:
-
-**Option A — Use the GitHub CLI (easiest):**
-1. Install it from [cli.github.com](https://cli.github.com)
-2. Run `gh auth login` in Terminal
-3. Click **☁️ Send to GitHub** again — Go Git It will create the repo automatically
-
-**Option B — Link manually:**
-1. Create a repo on [github.com](https://github.com)
-2. In Terminal: `git remote add origin https://github.com/you/your-repo.git`
-3. Click **☁️ Send to GitHub**
 
 ---
 

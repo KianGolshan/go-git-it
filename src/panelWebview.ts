@@ -421,8 +421,11 @@ html, body {
         <span class="icon">↻</span> I've installed it — refresh
       </button>
     ` : !state ? `
-      <p class="no-repo-msg">No git project found in this folder.</p>
+      <p class="no-repo-msg">This folder isn't being tracked yet. Start tracking it to keep a history of your work.</p>
       <div class="section-label">GET STARTED</div>
+      <button class="btn-action" data-cmd="initCurrentFolder" style="grid-column:1/-1;flex-direction:row;justify-content:flex-start;padding:10px 12px">
+        <span class="btn-icon">📁</span><span class="btn-label" style="text-align:left">Track this folder</span>
+      </button>
       <button class="btn-action" data-cmd="buildNewProject" style="grid-column:1/-1;flex-direction:row;justify-content:flex-start;padding:10px 12px">
         <span class="btn-icon">🏗️</span><span class="btn-label" style="text-align:left">Build a new project</span>
       </button>
@@ -438,10 +441,15 @@ html, body {
             <span class="btn-icon">📸</span>
             <span class="btn-label">Snapshot</span>
           </button>
+          ${state.hasUpstream ? `
           <button class="btn-action" data-cmd="pushToGitHub">
             <span class="btn-icon">☁️</span>
             <span class="btn-label">Send to GitHub</span>
-          </button>
+          </button>` : `
+          <button class="btn-action" data-cmd="connectToGitHub" style="background:var(--vscode-button-background);color:var(--vscode-button-foreground);">
+            <span class="btn-icon">🔗</span>
+            <span class="btn-label">Connect GitHub</span>
+          </button>`}
           <button class="btn-action" data-cmd="pullLatest">
             <span class="btn-icon">⬇️</span>
             <span class="btn-label">Get Latest</span>
@@ -452,11 +460,6 @@ html, body {
           </button>
         </div>
       </div>
-
-      ${!state.hasUpstream ? `
-      <button class="btn-secondary" data-cmd="connectToGitHub" style="background:var(--vscode-button-background);color:var(--vscode-button-foreground);border-radius:5px;padding:8px 12px;font-weight:600;">
-        <span class="icon">☁️</span> Connect to GitHub
-      </button>` : ''}
 
       ${experimentSection}
 

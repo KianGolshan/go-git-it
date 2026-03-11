@@ -10,19 +10,29 @@ export interface GhResult {
   error?: string
 }
 
-/** Returns true if the `gh` CLI is installed and authenticated. */
-export async function isGhCliAvailable(): Promise<boolean> {
+export type GhCliStatus = 'ok' | 'not_installed' | 'not_authenticated'
+
+/**
+ * Check whether `gh` CLI is installed and authenticated.
+ * Returns a 3-way status so callers can give precise guidance.
+ */
+export async function checkGhCli(): Promise<GhCliStatus> {
+  try {
+    await execFileAsync('gh', ['--version'])
+  } catch {
+    return 'not_installed'
+  }
   try {
     await execFileAsync('gh', ['auth', 'status'])
-    return true
+    return 'ok'
   } catch {
-    return false
+    return 'not_authenticated'
   }
 }
 
 /**
- * Create a public GitHub repo from the given local path and push the initial commit.
- * Assumes `git init` and first commit already done.
+ * Create a public GitHub repo from the given local path and push all local commits.
+ * Assumes `git init` and at least one commit already exist.
  */
 export async function createGithubRepo(
   cwd: string,
@@ -43,24 +53,44 @@ export async function createGithubRepo(
 }
 
 /**
- * Show the "gh CLI not installed" fallback modal.
- * Returns true if the user clicked "Open Setup Guide".
+ * Show the "GitHub CLI not installed" modal with a direct install link.
  */
-export async function showGhCliMissingModal(): Promise<boolean> {
+export async function showGhNotInstalledModal(): Promise<void> {
   const choice = await vscode.window.showInformationMessage(
-    'One quick setup needed',
+    'One free tool needed — the GitHub CLI',
     {
       modal: true,
       detail:
-        'To connect to GitHub automatically, we need a small free tool called the GitHub CLI. It only takes a minute to set up.',
+        'To connect to GitHub automatically, you need a free tool called the GitHub CLI.\n\n' +
+        'It takes about 1 minute to install. After that, connecting any project is one click.',
     },
-    'Open Setup Guide',
+    'Install the GitHub CLI (free)',
     'Skip for now'
   )
-  if (choice === 'Open Setup Guide') {
+  if (choice === 'Install the GitHub CLI (free)') {
     await vscode.env.openExternal(vscode.Uri.parse('https://cli.github.com'))
-    return true
   }
-  return false
 }
 
+/**
+ * Show the "GitHub CLI installed but not logged in" modal.
+ * Opens a terminal so the user can run `gh auth login`.
+ */
+export async function showGhNotAuthenticatedModal(): Promise<void> {
+  const choice = await vscode.window.showInformationMessage(
+    'Log in to GitHub (one-time setup)',
+    {
+      modal: true,
+      detail:
+        'The GitHub CLI is installed — great! You just need to log in once.\n\n' +
+        'Click "Open Terminal" below, then run this command:\n\n' +
+        '    gh auth login\n\n' +
+        'Follow the prompts — it opens your browser and logs you in automatically.',
+    },
+    'Open Terminal',
+    'Skip for now'
+  )
+  if (choice === 'Open Terminal') {
+    await vscode.commands.executeCommand('workbench.action.terminal.new')
+  }
+}

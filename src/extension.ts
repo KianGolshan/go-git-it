@@ -6,11 +6,11 @@ import * as os from 'os'
 import {
   takeSnapshot, pushToRemote, pullLatest,
   createExperiment, mergeExperiment, abandonExperiment,
-  getState, initProject, abortMerge,
+  getState, initProject, initExistingProject, abortMerge,
   isGitAvailable,
   GitResult, GitState,
 } from './gitRunner'
-import { isGhCliAvailable, createGithubRepo, showGhCliMissingModal } from './githubSetup'
+import { checkGhCli, createGithubRepo, showGhNotInstalledModal, showGhNotAuthenticatedModal } from './githubSetup'
 import { showRepoSwitcher } from './repoSwitcher'
 import { PanelWebviewProvider } from './panelWebview'
 import { showErrorExplainer } from './errorExplainer'
@@ -129,6 +129,7 @@ export function activate(context: vscode.ExtensionContext): void {
   const commands: [string, () => Promise<void>][] = [
     ['go-git-it.refresh',              async () => { await refreshState() }],
     ['go-git-it.buildNewProject',      cmdBuildNewProject],
+    ['go-git-it.initCurrentFolder',    cmdInitCurrentFolder],
     ['go-git-it.openDifferentProject', cmdOpenDifferentProject],
     ['go-git-it.takeSnapshot',         cmdTakeSnapshot],
     ['go-git-it.pushToGitHub',         cmdPushToGitHub],
@@ -288,8 +289,9 @@ async function cmdConnectToGitHub(): Promise<void> {
   const cwd = getCwd()
   if (!cwd) return
 
-  const ghAvailable = await isGhCliAvailable()
-  if (!ghAvailable) { await showGhCliMissingModal(); return }
+  const ghStatus = await checkGhCli()
+  if (ghStatus === 'not_installed') { await showGhNotInstalledModal(); return }
+  if (ghStatus === 'not_authenticated') { await showGhNotAuthenticatedModal(); return }
 
   const slug = await vscode.window.showInputBox({
     title: 'Connect to GitHub',
@@ -409,9 +411,13 @@ async function cmdBuildNewProject(): Promise<void> {
 
     if (connectGitHub) {
       progress.report({ message: 'Connecting to GitHub...' })
-      const ghAvailable = await isGhCliAvailable()
-      if (!ghAvailable) {
-        await showGhCliMissingModal()
+      const ghStatus = await checkGhCli()
+      if (ghStatus === 'not_installed') {
+        vscode.window.showWarningMessage('Project created! To connect to GitHub, install the GitHub CLI and click "Connect to GitHub" in the sidebar.')
+        await showGhNotInstalledModal()
+      } else if (ghStatus === 'not_authenticated') {
+        vscode.window.showWarningMessage('Project created! To connect to GitHub, log in with the GitHub CLI then click "Connect to GitHub" in the sidebar.')
+        await showGhNotAuthenticatedModal()
       } else {
         const ghResult = await createGithubRepo(projectPath, slug)
         if (ghResult.ok) showSuccess('✅ Your project is live on GitHub!')
@@ -424,6 +430,48 @@ async function cmdBuildNewProject(): Promise<void> {
 
   if (success) {
     await vscode.commands.executeCommand('vscode.openFolder', vscode.Uri.file(projectPath))
+  }
+}
+
+async function cmdInitCurrentFolder(): Promise<void> {
+  const cwd = getCwd()
+  if (!cwd) {
+    vscode.window.showWarningMessage('Open a folder in VS Code first, then try again.')
+    return
+  }
+
+  const folderName = path.basename(cwd)
+  const confirm = await vscode.window.showInformationMessage(
+    `Start tracking "${folderName}"?`,
+    {
+      modal: true,
+      detail:
+        `This will set up version control in:\n${cwd}\n\n` +
+        'Your existing files won\'t be changed — we\'ll just start keeping a history of them.',
+    },
+    'Yes, track it'
+  )
+  if (confirm !== 'Yes, track it') return
+
+  const initResult = await withFriendlyProgress('Setting up version control…', () => initExistingProject(cwd))
+  if (!initResult.ok) {
+    vscode.window.showErrorMessage(initResult.message)
+    return
+  }
+
+  watchGitDir(cwd)
+  await refreshState()
+
+  const githubChoice = await vscode.window.showInformationMessage(
+    'Folder is now being tracked! Back it up to GitHub?',
+    { modal: false },
+    'Connect to GitHub',
+    'Not yet'
+  )
+  if (githubChoice === 'Connect to GitHub') {
+    await vscode.commands.executeCommand('go-git-it.connectToGitHub')
+  } else {
+    showSuccess(initResult.message)
   }
 }
 

@@ -325,6 +325,30 @@ export async function initProject(projectPath: string, name: string): Promise<Gi
   return { ok: true, message: 'Project created! Your first snapshot is saved.' }
 }
 
+/**
+ * Initialize git tracking on an existing folder without overwriting any files.
+ * Runs `git init`, stages everything, and makes the first commit.
+ */
+export async function initExistingProject(projectPath: string): Promise<GitResult> {
+  const init = await git(['init'], projectPath)
+  if (init.failed) {
+    return { ok: false, message: 'Could not set up version control in this folder.', code: 'UNKNOWN', rawError: init.stderr }
+  }
+
+  await git(['add', '-A'], projectPath)
+  const status = await git(['status', '--porcelain'], projectPath)
+  const hasFiles = !status.failed && status.stdout.length > 0
+
+  if (hasFiles) {
+    const commit = await git(['commit', '-m', '🎉 Start tracking this project'], projectPath)
+    if (commit.failed) {
+      return { ok: false, message: 'Folder set up, but could not save the first snapshot.', code: 'UNKNOWN', rawError: commit.stderr }
+    }
+  }
+
+  return { ok: true, message: 'This folder is now being tracked. Your work is safe!' }
+}
+
 export async function abortMerge(cwd: string): Promise<GitResult> {
   const result = await git(['merge', '--abort'], cwd)
   if (result.failed) {

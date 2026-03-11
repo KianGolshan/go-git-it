@@ -38,6 +38,7 @@
     },
     "commands": [
       { "command": "go-git-it.buildNewProject",      "title": "🏗️ Build a new project" },
+      { "command": "go-git-it.initCurrentFolder",    "title": "📁 Track this folder" },
       { "command": "go-git-it.openDifferentProject", "title": "📂 Open a different project" },
       { "command": "go-git-it.takeSnapshot",         "title": "📸 Take a snapshot" },
       { "command": "go-git-it.pushToGitHub",         "title": "☁️ Send to GitHub" },
@@ -64,9 +65,15 @@
             "media": { "markdown": "media/walkthrough-snapshot.md" }
           },
           {
+            "id": "github-setup",
+            "title": "Setting up GitHub (one time)",
+            "description": "Before you can back up online, you need two free things: a GitHub account and the GitHub CLI.\n\n[Install the GitHub CLI](https://cli.github.com)\n[Create a free GitHub account](https://github.com/signup)",
+            "media": { "markdown": "media/walkthrough-github-setup.md" }
+          },
+          {
             "id": "github",
-            "title": "Backing up to GitHub",
-            "description": "GitHub keeps a copy of your work online. If your computer is lost or broken, your project is safe.\n[Send to GitHub](command:go-git-it.pushToGitHub)",
+            "title": "Connecting and backing up to GitHub",
+            "description": "Once you're set up, click Connect to GitHub in the sidebar — Go Git It creates the repo and uploads your work in one step.\n\n[Connect to GitHub](command:go-git-it.connectToGitHub)\n[Send to GitHub](command:go-git-it.pushToGitHub)",
             "media": { "markdown": "media/walkthrough-github.md" }
           },
           {
@@ -102,8 +109,8 @@
           },
           {
             "id": "demo-github",
-            "title": "Step 3 — Send your work to GitHub",
-            "description": "Your snapshot is saved on your computer. Now back it up online so it's safe no matter what.\n\n[☁️ Send to GitHub](command:go-git-it.pushToGitHub)",
+            "title": "Step 3 — Connect and back up to GitHub",
+            "description": "Your snapshot is saved on your computer. Now back it up online so it's safe no matter what.\n\nFirst time? You'll need the GitHub CLI set up — see the main walkthrough for a 2-minute guide.\n\n[🔗 Connect to GitHub](command:go-git-it.connectToGitHub)\n[☁️ Send to GitHub](command:go-git-it.pushToGitHub)",
             "media": { "markdown": "media/demo-03-github.md" }
           },
           {

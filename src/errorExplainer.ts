@@ -39,9 +39,9 @@ const ERROR_SPECS: Record<ErrorCode, ErrorSpec> = {
     header: 'This project isn\'t on GitHub yet',
     whatWeTried: 'Back up your work to GitHub',
     whatHappened:
-      "This project isn't connected to a GitHub repository yet.",
+      "This project isn't connected to a GitHub repository yet — your snapshots are only saved on this computer.",
     whatToDoNext:
-      'Your snapshots are safe on this computer. Connecting to GitHub is a one-time setup.',
+      'Click "Connect to GitHub" below. If a setup prompt appears, follow the steps: install the GitHub CLI (free, 1 min) and run "gh auth login" in Terminal. You only do this once, and Go Git It handles everything else.',
     actionLabel: '🔗 Connect to GitHub',
     actionCommand: 'go-git-it.connectToGitHub',
   },
