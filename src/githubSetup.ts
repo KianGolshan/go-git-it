@@ -16,14 +16,32 @@ export type GhCliStatus = 'ok' | 'not_installed' | 'not_authenticated'
  * Check whether `gh` CLI is installed and authenticated.
  * Returns a 3-way status so callers can give precise guidance.
  */
-export async function checkGhCli(): Promise<GhCliStatus> {
-  try {
-    await execFileAsync('gh', ['--version'], { shell: true })
-  } catch {
-    return 'not_installed'
+// On macOS, VS Code's extension host runs under a minimal shell that doesn't
+// source ~/.zshrc or ~/.bash_profile, so Homebrew binaries aren't on PATH.
+// Try known install locations before falling back to a bare 'gh'.
+const GH_CANDIDATES = [
+  'gh',
+  '/opt/homebrew/bin/gh',  // Apple Silicon Macs
+  '/usr/local/bin/gh',     // Intel Macs
+]
+
+async function findGhBinary(): Promise<string | null> {
+  for (const bin of GH_CANDIDATES) {
+    try {
+      await execFileAsync(bin, ['--version'])
+      return bin
+    } catch {
+      // try next
+    }
   }
+  return null
+}
+
+export async function checkGhCli(): Promise<GhCliStatus> {
+  const gh = await findGhBinary()
+  if (!gh) return 'not_installed'
   try {
-    await execFileAsync('gh', ['auth', 'status'], { shell: true })
+    await execFileAsync(gh, ['auth', 'status'])
     return 'ok'
   } catch {
     return 'not_authenticated'
@@ -39,10 +57,11 @@ export async function createGithubRepo(
   slug: string
 ): Promise<GhResult> {
   try {
+    const gh = await findGhBinary() ?? 'gh'
     const { stdout } = await execFileAsync(
-      'gh',
+      gh,
       ['repo', 'create', slug, '--public', '--source=.', '--remote=origin', '--push'],
-      { cwd, shell: true }
+      { cwd }
     )
     const urlMatch = stdout.match(/https:\/\/github\.com\/\S+/)
     return { ok: true, url: urlMatch ? urlMatch[0] : undefined }

@@ -1,6 +1,11 @@
 import * as vscode from 'vscode'
 import { GitResult, ErrorCode } from './gitRunner'
 
+function getNonce(): string {
+  const c = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789'
+  return Array.from({ length: 32 }, () => c[Math.floor(Math.random() * c.length)]).join('')
+}
+
 interface ErrorSpec {
   emoji: string
   header: string
@@ -74,7 +79,7 @@ const ERROR_SPECS: Record<ErrorCode, ErrorSpec> = {
   },
 }
 
-function buildHtml(spec: ErrorSpec, rawError?: string): string {
+function buildHtml(spec: ErrorSpec, rawError?: string, nonce = ''): string {
   const showDetails = rawError
     ? `<details class="raw-error">
         <summary>Show technical details</summary>
@@ -83,7 +88,7 @@ function buildHtml(spec: ErrorSpec, rawError?: string): string {
     : ''
 
   const actionBtn = spec.actionCommand
-    ? `<button class="btn-primary" onclick="acquireVsCodeApi().postMessage({type:'action', command:'${spec.actionCommand}'})">
+    ? `<button class="btn-primary" data-action="${escapeHtml(spec.actionCommand)}">
         ${escapeHtml(spec.actionLabel ?? 'Fix it')}
       </button>`
     : ''
@@ -93,7 +98,8 @@ function buildHtml(spec: ErrorSpec, rawError?: string): string {
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline';">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'nonce-${nonce}';">
+
   <title>What's going on?</title>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -208,13 +214,22 @@ function buildHtml(spec: ErrorSpec, rawError?: string): string {
 
     <div class="actions">
       ${actionBtn}
-      <button class="btn-secondary" onclick="acquireVsCodeApi().postMessage({type:'dismiss'})">Dismiss</button>
+      <button class="btn-secondary" id="btn-dismiss">Dismiss</button>
     </div>
 
     ${showDetails}
   </div>
-  <script>
+  <script nonce="${nonce}">
     const vscode = acquireVsCodeApi();
+    document.getElementById('btn-dismiss').addEventListener('click', () => {
+      vscode.postMessage({ type: 'dismiss' });
+    });
+    const actionBtn = document.querySelector('[data-action]');
+    if (actionBtn) {
+      actionBtn.addEventListener('click', () => {
+        vscode.postMessage({ type: 'action', command: actionBtn.getAttribute('data-action') });
+      });
+    }
   </script>
 </body>
 </html>`
@@ -242,7 +257,8 @@ export function showErrorExplainer(
     { enableScripts: true, retainContextWhenHidden: true }
   )
 
-  panel.webview.html = buildHtml(spec, lastError.rawError)
+  const nonce = getNonce()
+  panel.webview.html = buildHtml(spec, lastError.rawError, nonce)
 
   panel.webview.onDidReceiveMessage(
     async (msg: { type: string; command?: string }) => {

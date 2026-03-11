@@ -7,6 +7,17 @@ import * as os from 'os'
 
 const execFileAsync = promisify(execFile)
 
+// On macOS the extension host runs under a minimal shell without Homebrew on PATH.
+// Try known install locations so GitHub repos appear in the switcher.
+const GH_CANDIDATES = ['gh', '/opt/homebrew/bin/gh', '/usr/local/bin/gh']
+
+async function findGhBinary(): Promise<string | null> {
+  for (const bin of GH_CANDIDATES) {
+    try { await execFileAsync(bin, ['--version']); return bin } catch { /* try next */ }
+  }
+  return null
+}
+
 interface RepoItem extends vscode.QuickPickItem {
   itemKind: 'local' | 'github' | 'separator'
   localPath?: string
@@ -67,7 +78,9 @@ async function fetchGithubRepos(): Promise<
   Array<{ name: string; cloneUrl: string; updatedAt: Date }>
 > {
   try {
-    const { stdout } = await execFileAsync('gh', [
+    const gh = await findGhBinary()
+    if (!gh) return []
+    const { stdout } = await execFileAsync(gh, [
       'repo',
       'list',
       '--limit',

@@ -2,7 +2,7 @@
   "name": "go-git-it",
   "displayName": "Go Git It",
   "description": "Version control for vibe-coders — no Git jargon, just friendly snapshots.",
-  "version": "0.3.2",
+  "version": "0.3.3",
   "publisher": "kiangolshan",
   "license": "MIT",
   "repository": { "type": "git", "url": "https://github.com/kiangolshan/Go-Git-It.git" },
@@ -49,7 +49,11 @@
       { "command": "go-git-it.refresh",               "title": "↻ Refresh status" },
       { "command": "go-git-it.explainError",         "title": "❓ What's going on?" },
       { "command": "go-git-it.openWalkthrough",      "title": "📖 How does this work?" },
-      { "command": "go-git-it.openDemo",             "title": "🎬 Demo: Go Git It Walkthrough" }
+      { "command": "go-git-it.openDemo",             "title": "🎬 Demo: Go Git It Walkthrough" },
+      { "command": "go-git-it.connectToGitHub",      "title": "🔗 Connect to GitHub" },
+      { "command": "go-git-it.snapshotThenPull",     "title": "📸 Snapshot then get latest" },
+      { "command": "go-git-it.abortMerge",           "title": "↩️ Undo the merge" },
+      { "command": "go-git-it.downloadGit",          "title": "📥 Download Git (free)" }
     ],
     "menus": {},
     "walkthroughs": [

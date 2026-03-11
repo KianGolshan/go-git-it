@@ -287,7 +287,7 @@ async function cmdOpenDemo(): Promise<void> {
 
 async function cmdConnectToGitHub(): Promise<void> {
   const cwd = getCwd()
-  if (!cwd) return
+  if (!cwd) { vscode.window.showWarningMessage('Open a project first.'); return }
 
   const ghStatus = await checkGhCli()
   if (ghStatus === 'not_installed') { await showGhNotInstalledModal(); return }
@@ -310,7 +310,7 @@ async function cmdConnectToGitHub(): Promise<void> {
 
 async function cmdSnapshotThenPull(): Promise<void> {
   const cwd = getCwd()
-  if (!cwd) return
+  if (!cwd) { vscode.window.showWarningMessage('Open a project first.'); return }
   const snap = await withFriendlyProgress('Saving your snapshot first...', () => takeSnapshot(cwd))
   if (!snap.ok && snap.code !== 'NOTHING_TO_COMMIT') { handleResult(snap); return }
   const pull = await withFriendlyProgress('Getting the latest version...', () => pullLatest(cwd))
@@ -320,7 +320,7 @@ async function cmdSnapshotThenPull(): Promise<void> {
 
 async function cmdAbortMerge(): Promise<void> {
   const cwd = getCwd()
-  if (!cwd) return
+  if (!cwd) { vscode.window.showWarningMessage('Open a project first.'); return }
   const result = await withFriendlyProgress('Undoing the merge...', () => abortMerge(cwd))
   handleResult(result)
   await refreshState()
