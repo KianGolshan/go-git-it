@@ -4,6 +4,8 @@
 
 Go Git It wraps Git in plain English — no terminal, no jargon, no learning curve. A friendly sidebar panel keeps your work safe with snapshots, GitHub backups, and risk-free experiments.
 
+![Go Git It demo](media/demo2-feature.gif)
+
 ---
 
 ## Why Go Git It?

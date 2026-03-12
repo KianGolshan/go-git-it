@@ -12,5 +12,8 @@ docs/
 GO_GIT_IT_OVERVIEW.html
 PUBLISHING_GUIDE.html
 
+# Marketing / demo videos
+demos/
+
 # Misc
 *.vsix

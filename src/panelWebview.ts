@@ -134,7 +134,7 @@ html, body {
   max-width: 60%;
 }
 .header-logo {
-  font-size: 11px;
+  font-size: 15px;
   font-weight: 700;
   letter-spacing: .04em;
   color: var(--vscode-descriptionForeground);
