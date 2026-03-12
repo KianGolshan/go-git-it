@@ -1,8 +1,8 @@
 {
   "name": "go-git-it",
-  "displayName": "Go Git It",
-  "description": "Version control for vibe-coders — no Git jargon, just friendly snapshots.",
-  "version": "0.3.6",
+  "displayName": "Go Git It - Git Simplified",
+  "description": "A VS Code extension that turns Git into simple buttons for builders using AI tools.",
+  "version": "0.3.7",
   "publisher": "kiangolshan",
   "license": "MIT",
   "repository": {
@@ -19,11 +19,17 @@
     "version-control",
     "beginner",
     "vibe-coding",
+    "vibe-coder",
     "ai-tools",
+    "ai",
     "source-control",
     "workflow",
     "productivity",
-    "no-terminal"
+    "no-terminal",
+    "claude-code",
+    "claude",
+    "projects",
+    "tools"
   ],
   "icon": "icon.png",
   "galleryBanner": {
